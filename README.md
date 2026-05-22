@@ -19,6 +19,9 @@ Free NAS system in Django Framework.
 5. Run "python manage.py runserver"
 
 
-# User / Password สำหรับ Admin (แนะนำให้เปลี่ยนรหัสผ่านหลังเข้าใช้งานได้)
-1. Username : admin
-2. Password : 1234
+# User / Password สำหรับ Admin
+แนะนำให้เปลี่ยนรหัสผ่านหลังเข้าใช้งานได้
+
+Username : admin
+
+Password : 1234
