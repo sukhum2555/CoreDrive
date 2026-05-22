@@ -20,5 +20,5 @@ Free NAS system in Django Framework.
 
 
 # User / Password สำหรับ Admin (แนะนำให้เปลี่ยนรหัสผ่านหลังเข้าใช้งานได้)
-User : admin
-Pass : 1234
+1. Username : admin
+2. Password : 1234
