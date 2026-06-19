@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>{% block title %}NAS Drive{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+  {% load static %}
+  <style>
+    :root {
+      --bg:       #ffffff;
+      --bg2:      #f8fafc;
+      --bg3:      #f1f5f9;
+      --border:   rgba(0,0,0,0.08);
+      --text:     #0f172a;
+      --text-muted: #64748b;
+      --accent:   #2563eb;
+      --accent2:  #3b82f6;
+      --danger:   #ef4444;
+      --success:  #22c55e;
+      --nav-h:    64px;
+      --top-h:    52px;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-serif; overflow: hidden; }
+
+    /* ── Top Bar ── */
+    .m-topbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      height: var(--top-h);
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(16px);
+      border-bottom: 0.5px solid var(--border);
+      display: flex; align-items: center; padding: 0 16px; gap: 12px;
+    }
+    .m-topbar-title { font-size: 16px; font-weight: 600; flex: 1; }
+    .m-topbar-logo {
+      width: 30px; height: 30px; background: var(--accent);
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .m-icon-btn {
+      width: 36px; height: 36px; border: none; background: transparent;
+      color: var(--text-muted); border-radius: 10px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .m-icon-btn:active { background: var(--bg3); }
+
+    /* ── Scroll Area ── */
+    .m-content {
+      position: fixed;
+      top: var(--top-h); bottom: calc(var(--nav-h) + var(--safe-bottom));
+      left: 0; right: 0;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* ── Bottom Nav ── */
+    .m-bottomnav {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+      height: calc(var(--nav-h) + var(--safe-bottom));
+      padding-bottom: var(--safe-bottom);
+      background: rgba(255,255,255,0.97);
+      backdrop-filter: blur(16px);
+      border-top: 0.5px solid var(--border);
+      display: flex; align-items: center;
+    }
+    .m-nav-item {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 4px; height: 100%;
+      color: var(--text-muted); text-decoration: none;
+      font-size: 11px; font-weight: 500;
+      transition: color 0.15s;
+    }
+    .m-nav-item.active { color: var(--accent2); }
+    .m-nav-item svg { width: 22px; height: 22px; }
+    .m-nav-dot {
+      position: absolute; top: 6px; right: 50%; transform: translateX(8px);
+      width: 6px; height: 6px; background: var(--accent);
+      border-radius: 50%;
+    }
+
+    /* ── File Grid / List ── */
+    .m-file-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+      background: var(--border);
+    }
+    .m-file-card {
+      background: var(--bg); padding: 12px 8px; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      text-align: center; position: relative; transition: background 0.1s;
+    }
+    .m-file-card:active { background: var(--bg2); }
+    .m-file-name {
+      font-size: 11px; color: var(--text);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%;
+    }
+    .m-file-meta { font-size: 10px; color: var(--text-muted); }
+
+    .m-file-list { display: flex; flex-direction: column; }
+    .m-file-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; border-bottom: 0.5px solid var(--border);
+      cursor: pointer; transition: background 0.1s;
+    }
+    .m-file-row:active { background: var(--bg2); }
+    .m-file-row-icon { flex-shrink: 0; }
+    .m-file-row-info { flex: 1; min-width: 0; }
+    .m-file-row-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .m-file-row-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .m-file-row-arrow { color: var(--text-muted); flex-shrink: 0; }
+
+    /* ── Section Label ── */
+    .m-section { font-size: 11px; font-weight: 600; color: var(--text-muted);
+      letter-spacing: 0.06em; text-transform: uppercase; padding: 14px 16px 6px; }
+
+    /* ── Empty State ── */
+    .m-empty { display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 60px 20px; gap: 12px; color: var(--text-muted); }
+    .m-empty p { font-size: 14px; }
+
+    /* ── FAB ── */
+    .m-fab {
+      position: fixed; right: 20px; bottom: calc(var(--nav-h) + var(--safe-bottom) + 16px);
+      width: 52px; height: 52px; border-radius: 16px;
+      background: var(--accent); border: none; color: #fff; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+      z-index: 90; transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .m-fab:active { transform: scale(0.93); box-shadow: 0 2px 10px rgba(99,102,241,0.3); }
+
+    /* ── Toast ── */
+    .m-toast-wrap { position: fixed; top: calc(var(--top-h) + 8px); left: 12px; right: 12px; z-index: 200; display: flex; flex-direction: column; gap: 6px; }
+    .m-toast { padding: 12px 16px; border-radius: 12px; font-size: 13px; background: var(--bg3); border: 0.5px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .m-toast.success { background: rgba(34,197,94,0.15); border-color: rgba(34,197,94,0.3); color: #86efac; }
+    .m-toast.error   { background: rgba(239,68,68,0.15);  border-color: rgba(239,68,68,0.3);  color: #fca5a5; }
+
+    /* ── Sheet Modal ── */
+    .m-sheet-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.6); opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+    .m-sheet-overlay.open { opacity: 1; pointer-events: auto; }
+    .m-sheet {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 301;
+      background: var(--bg2); border-radius: 20px 20px 0 0;
+      border-top: 0.5px solid var(--border);
+      transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32,0.72,0,1);
+      padding-bottom: var(--safe-bottom);
+    }
+    .m-sheet.open { transform: translateY(0); }
+    .m-sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 0; }
+    .m-sheet-title { font-size: 15px; font-weight: 600; padding: 16px 20px 8px; }
+    .m-sheet-item {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 20px; font-size: 15px; cursor: pointer; transition: background 0.1s;
+    }
+    .m-sheet-item:active { background: var(--bg3); }
+    .m-sheet-item.danger { color: var(--danger); }
+    .m-sheet-sep { height: 0.5px; background: var(--border); margin: 4px 0; }
+
+    /* ── Breadcrumb ── */
+    .m-breadcrumb {
+      display: flex; align-items: center; gap: 4px; padding: 10px 16px;
+      overflow-x: auto; white-space: nowrap;
+      border-bottom: 0.5px solid var(--border);
+      background: var(--bg2);
+      -ms-overflow-style: none; scrollbar-width: none;
+    }
+    .m-breadcrumb::-webkit-scrollbar { display: none; }
+    .m-bc-item { font-size: 12px; color: var(--accent2); text-decoration: none; }
+    .m-bc-sep { font-size: 12px; color: var(--text-muted); }
+    .m-bc-current { font-size: 12px; color: var(--text-muted); }
+
+    /* ── Search ── */
+    .m-search-bar { padding: 10px 16px; background: var(--bg2); border-bottom: 0.5px solid var(--border); }
+    .m-search-input {
+      width: 100%; height: 36px; background: var(--bg3);
+      border: 0.5px solid var(--border); border-radius: 10px;
+      padding: 0 12px 0 36px; color: var(--text); font-size: 14px;
+      font-family: inherit; outline: none;
+    }
+    .m-search-input::placeholder { color: var(--text-muted); }
+    .m-search-wrap { position: relative; }
+    .m-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+
+    /* ── Upload sheet ── */
+    .m-upload-drop {
+      margin: 16px; border: 1.5px dashed var(--border); border-radius: 14px;
+      padding: 32px 20px; text-align: center; color: var(--text-muted);
+    }
+    .m-upload-pick { display: inline-block; margin-top: 12px; padding: 8px 20px; background: var(--accent); color: #fff; border-radius: 10px; font-size: 14px; cursor: pointer; }
+
+    /* ── Storage bar ── */
+    .m-storage { padding: 12px 16px; }
+    .m-storage-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .m-storage-bar { height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+    .m-storage-fill { height: 100%; background: var(--accent); border-radius: 2px; }
+
+    /* ── Admin list ── */
+    .m-list-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px; border-bottom: 0.5px solid var(--border);
+    }
+    .m-list-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--bg3); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--accent2); }
+    .m-list-info { flex: 1; min-width: 0; }
+    .m-list-title { font-size: 14px; }
+    .m-list-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .m-list-right { font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+
+    /* ── Pill badge ── */
+    .m-pill { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+    .m-pill-blue   { background: rgba(99,102,241,0.2); color: var(--accent2); }
+    .m-pill-green  { background: rgba(34,197,94,0.15); color: #86efac; }
+    .m-pill-gray   { background: var(--bg3); color: var(--text-muted); }
+    .m-pill-red    { background: rgba(239,68,68,0.15); color: #fca5a5; }
+    .m-pill-amber  { background: rgba(245,158,11,0.15); color: #fcd34d; }
+
+    /* ── Form ── */
+    .m-form-group { padding: 0 16px 16px; }
+    .m-form-label { font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.05em; }
+    .m-form-input {
+      width: 100%; height: 44px; background: var(--bg3);
+      border: 0.5px solid var(--border); border-radius: 12px;
+      padding: 0 14px; color: var(--text); font-size: 15px;
+      font-family: inherit; outline: none; transition: border-color 0.15s;
+    }
+    .m-form-input:focus { border-color: var(--accent); }
+    .m-btn-primary {
+      width: 100%; height: 48px; background: var(--accent); color: #fff;
+      border: none; border-radius: 14px; font-size: 16px; font-weight: 600;
+      font-family: inherit; cursor: pointer; transition: opacity 0.15s;
+    }
+    .m-btn-primary:active { opacity: 0.85; }
+    .m-btn-outline {
+      width: 100%; height: 44px; background: transparent;
+      border: 0.5px solid var(--border); color: var(--text);
+      border-radius: 14px; font-size: 15px; font-family: inherit; cursor: pointer;
+    }
+  </style>
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="m-topbar">
+  {% block topbar %}
+  <div class="m-topbar-logo">
+    <svg viewBox="0 0 24 24" fill="white" width="16" height="16"><path d="M2 20h20v-2H2v2zm2-4h16v-2H4v2zm0-4h16v-2H4v2zm0-8v6h16V4H4z"/></svg>
+  </div>
+  <span class="m-topbar-title">{% block topbar_title %}NAS Drive{% endblock %}</span>
+  {% block topbar_actions %}{% endblock %}
+  {% endblock %}
+</div>
+
+<!-- Toast -->
+{% if messages %}
+<div class="m-toast-wrap">
+  {% for msg in messages %}
+  <div class="m-toast {% if 'error' in msg.tags %}error{% elif 'success' in msg.tags %}success{% endif %}">
+    {{ msg }}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Main content -->
+<div class="m-content" id="m-content">
+  {% block content %}{% endblock %}
+</div>
+
+<!-- Bottom Nav -->
+<nav class="m-bottomnav">
+  <a href="{% url 'index' %}" class="m-nav-item {% block nav_files %}{% endblock %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    ไฟล์
+  </a>
+  <a href="{% url 'starred' %}" class="m-nav-item {% block nav_starred %}{% endblock %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+    ดาว
+  </a>
+  <a href="#" class="m-nav-item" id="m-upload-btn">
+    <div style="width:44px;height:44px;background:var(--accent);border-radius:14px;display:flex;align-items:center;justify-content:center;margin-top:-16px;box-shadow:0 4px 16px rgba(99,102,241,0.4)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" width="22" height="22"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </div>
+  </a>
+  <a href="{% url 'trash' %}" class="m-nav-item {% block nav_trash %}{% endblock %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+    ถัง
+  </a>
+  <a href="#" class="m-nav-item {% block nav_me %}{% endblock %}" onclick="event.preventDefault();openProfile()">
+    <div style="width:28px;height:28px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#fff">
+      {{ request.user.username|first|upper }}
+    </div>
+    ฉัน
+  </a>
+</nav>
+
+<!-- Profile Sheet -->
+<div class="m-sheet-overlay" id="profile-overlay" onclick="closeProfile()"></div>
+<div class="m-sheet" id="profile-sheet">
+  <div class="m-sheet-handle"></div>
+  <div style="padding:20px;display:flex;align-items:center;gap:14px;border-bottom:0.5px solid var(--border)">
+    <div style="width:48px;height:48px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#fff;flex-shrink:0">
+      {{ request.user.username|first|upper }}
+    </div>
+    <div>
+      <div style="font-size:16px;font-weight:600">{{ request.user.username }}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:2px">
+        {% if request.user.is_superuser %}superuser
+        {% elif request.user.is_staff %}staff
+        {% else %}user{% endif %}
+        {% if request.user.email %} · {{ request.user.email }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:8px 0">
+    {% if request.user.is_staff or request.user.is_superuser %}
+    <a href="/nas-admin/" class="m-sheet-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+      Admin Panel
+    </a>
+    {% endif %}
+    <div class="m-sheet-sep"></div>
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="m-sheet-item danger" style="width:100%;text-align:left;background:none;border:none;font-family:inherit;font-size:15px;cursor:pointer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ออกจากระบบ
+      </button>
+    </form>
+  </div>
+  <div style="height:8px"></div>
+</div>
+
+<!-- Upload Sheet -->
+<div class="m-sheet-overlay" id="upload-overlay" onclick="closeUpload()"></div>
+<div class="m-sheet" id="upload-sheet">
+  <div class="m-sheet-handle"></div>
+  <div class="m-sheet-title">อัปโหลดไฟล์</div>
+  <form method="post" action="{% url 'upload_files' %}" enctype="multipart/form-data" id="m-upload-form">
+    {% csrf_token %}
+    <input type="hidden" name="parent_id" value="{{ parent.id|default:'' }}" id="m-parent-id">
+    <div class="m-upload-drop">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="36" height="36" style="color:var(--accent2);margin-bottom:8px">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <p style="font-size:14px">เลือกไฟล์ที่ต้องการอัปโหลด</p>
+      <label class="m-upload-pick">
+        เลือกไฟล์
+        <input type="file" name="files" multiple id="m-file-input" style="display:none" onchange="previewFiles(this)">
+      </label>
+    </div>
+    <div id="m-file-preview" style="padding:0 16px 8px;max-height:140px;overflow-y:auto"></div>
+    <div style="padding:0 16px 16px;display:flex;gap:8px;align-items:center">
+      <button type="button" onclick="closeUpload()"
+        style="height:44px;padding:0 20px;flex-shrink:0;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;font-size:15px;font-family:inherit;color:#374151;cursor:pointer;white-space:nowrap">
+        ยกเลิก
+      </button>
+      <button type="submit"
+        style="flex:1;height:44px;background:#2563eb;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer">
+        อัปโหลด
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- File Action Sheet -->
+<div class="m-sheet-overlay" id="action-overlay" onclick="closeAction()"></div>
+<div class="m-sheet" id="action-sheet">
+  <div class="m-sheet-handle"></div>
+  <div class="m-sheet-title" id="action-sheet-title"></div>
+  <div id="action-sheet-body"></div>
+  <div style="height:8px"></div>
+</div>
+
+<script>
+// Upload sheet
+document.getElementById('m-upload-btn').onclick = e => { e.preventDefault(); openUpload(); };
+function openUpload() {
+  document.getElementById('upload-overlay').classList.add('open');
+  document.getElementById('upload-sheet').classList.add('open');
+}
+function closeUpload() {
+  document.getElementById('upload-overlay').classList.remove('open');
+  document.getElementById('upload-sheet').classList.remove('open');
+}
+function previewFiles(input) {
+  const el = document.getElementById('m-file-preview');
+  el.innerHTML = Array.from(input.files).map(f =>
+    `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--border);font-size:12px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent2)" stroke-width="2" width="14" height="14"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/></svg>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}</span>
+      <span style="color:var(--text-muted)">${humanSize(f.size)}</span>
+    </div>`
+  ).join('');
+}
+function humanSize(b) {
+  const u=['B','KB','MB','GB']; let i=0;
+  while(b>=1024&&i<3){b/=1024;i++;} return b.toFixed(1)+' '+u[i];
+}
+
+// Action sheet
+function openAction(nodeId, nodeName, isFolder) {
+  document.getElementById('action-sheet-title').textContent = nodeName;
+  const body = document.getElementById('action-sheet-body');
+  const items = [
+    !isFolder ? `<a href="/file/${nodeId}/preview/" class="m-sheet-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>ดูตัวอย่าง</a>` : '',
+    `<a href="${isFolder ? '/folder/'+nodeId+'/' : '/file/'+nodeId+'/download/'}" class="m-sheet-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>${isFolder ? 'เปิด' : 'ดาวน์โหลด'}</a>`,
+    `<div class="m-sheet-sep"></div>`,
+    `<div class="m-sheet-item danger" onclick="trashNode('${nodeId}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>ย้ายไปถังขยะ</div>`,
+  ];
+  body.innerHTML = items.join('');
+  document.getElementById('action-overlay').classList.add('open');
+  document.getElementById('action-sheet').classList.add('open');
+}
+function closeAction() {
+  document.getElementById('action-overlay').classList.remove('open');
+  document.getElementById('action-sheet').classList.remove('open');
+}
+function trashNode(nodeId) {
+  const form = document.createElement('form');
+  form.method = 'POST'; form.action = `/node/${nodeId}/trash/`;
+  form.innerHTML = `<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">`;
+  document.body.appendChild(form); form.submit();
+}
+
+// Profile sheet
+function openProfile() {
+  document.getElementById('profile-overlay').classList.add('open');
+  document.getElementById('profile-sheet').classList.add('open');
+}
+function closeProfile() {
+  document.getElementById('profile-overlay').classList.remove('open');
+  document.getElementById('profile-sheet').classList.remove('open');
+}
+
+// Auto-dismiss toasts
+setTimeout(() => document.querySelectorAll('.m-toast').forEach(t => t.remove()), 3500);
+</script>
+{% block extra_js %}{% endblock %}
+<script src="{% static 'app/js/protect.js' %}"></script>
+</body>
+</html>

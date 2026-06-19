@@ -1,0 +1,192 @@
+{% extends 'app/admin/base.html' %}
+{% block title %}จัดการ Users{% endblock %}
+{% block page_title %}จัดการ Users{% endblock %}
+
+{% block content %}
+<div style="display:flex;gap:20px;align-items:flex-start">
+
+  <!-- Add user card -->
+  <div class="admin-card" style="flex:0 0 280px">
+    <div class="admin-card-header"><h3>เพิ่มผู้ใช้ใหม่</h3></div>
+    <div class="admin-card-body">
+      <form method="post" action="{% url 'admin_user_add' %}">
+        {% csrf_token %}
+        <div class="form-group">
+          <label class="form-label">ชื่อผู้ใช้</label>
+          <input type="text" name="username" class="form-input" required placeholder="username">
+        </div>
+        <div class="form-group">
+          <label class="form-label">อีเมล</label>
+          <input type="email" name="email" class="form-input" placeholder="email@example.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">รหัสผ่าน</label>
+          <input type="password" name="password" class="form-input" required placeholder="••••••••">
+        </div>
+        <div class="form-group">
+          <label class="form-check">
+            <input type="checkbox" name="is_staff"> ให้สิทธิ์ Staff
+          </label>
+        </div>
+        <button type="submit" class="btn-primary" style="width:100%">เพิ่มผู้ใช้</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- User list -->
+  <div class="admin-card" style="flex:1;min-width:0">
+    <div class="admin-card-header">
+      <h3>รายชื่อผู้ใช้ ({{ users|length }} คน)</h3>
+      <form method="get" style="display:flex;gap:8px">
+        <input type="text" name="q" value="{{ q|default:'' }}" class="form-input" style="width:200px;height:32px" placeholder="ค้นหา username...">
+        <button type="submit" class="tb-btn">ค้นหา</button>
+      </form>
+    </div>
+    <div class="admin-card-body" style="padding:0">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th style="width:220px">ผู้ใช้</th>
+            <th>สิทธิ์</th>
+            <th style="text-align:right">ไฟล์</th>
+            <th style="text-align:right">พื้นที่ใช้</th>
+            <th style="text-align:right">Quota</th>
+            <th style="text-align:right">เข้าใช้ล่าสุด</th>
+            <th style="width:130px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div class="user-avatar sm" style="background:{% if u.is_superuser %}#7c3aed{% elif u.is_staff %}#0891b2{% else %}var(--accent){% endif %}">{{ u.username|first|upper }}</div>
+                <div>
+                  <div style="font-weight:500;font-size:13px">{{ u.username }}</div>
+                  <div style="font-size:11px;color:var(--text-muted)">{{ u.email|default:"ไม่มีอีเมล" }}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              {% if u.is_superuser %}<span class="badge-pill pill-blue">superuser</span>
+              {% elif u.is_staff %}<span class="badge-pill pill-teal">staff</span>
+              {% else %}<span class="badge-pill pill-gray">user</span>{% endif %}
+              {% if not u.is_active %}<span class="badge-pill pill-amber" style="margin-left:4px">ระงับ</span>{% endif %}
+            </td>
+            <td style="text-align:right;font-size:13px">{{ u.file_count|default:"0" }}</td>
+            <td style="text-align:right;font-size:13px">{{ u.storage_human|default:"0 B" }}</td>
+            <td style="text-align:right">
+              {% if u.is_staff or u.is_superuser %}
+                <span style="font-size:12px;color:var(--text-muted)">ไม่จำกัด</span>
+              {% else %}
+                <button type="button"
+                  onclick="openQuotaModal({{ u.id }}, '{{ u.username }}', {% if u.custom_quota_gb is not None %}{{ u.custom_quota_gb }}{% else %}''{% endif %}, {{ default_quota }})"
+                  style="background:none;border:none;cursor:pointer;padding:0;text-align:right">
+                  {% if u.custom_quota_gb is not None %}
+                    <span style="font-size:12px;font-weight:500;color:var(--accent)">
+                      {% if u.custom_quota_gb == 0 %}ไม่จำกัด{% else %}{{ u.custom_quota_gb }} GB{% endif %}
+                    </span>
+                    <div style="font-size:10px;color:var(--text-muted)">เฉพาะบุคคล</div>
+                  {% else %}
+                    <span style="font-size:12px;color:var(--text-muted)">
+                      {% if default_quota == 0 %}ไม่จำกัด{% else %}{{ default_quota }} GB{% endif %}
+                    </span>
+                    <div style="font-size:10px;color:var(--text-muted)">default</div>
+                  {% endif %}
+                </button>
+              {% endif %}
+            </td>
+            <td style="text-align:right;font-size:12px;color:var(--text-muted);white-space:nowrap">
+              {{ u.last_login|date:"d M Y"|default:"ยังไม่เคย" }}
+            </td>
+            <td>
+              <div style="display:flex;gap:4px;justify-content:flex-end">
+                <form method="post" action="{% url 'admin_user_toggle' user_id=u.id %}">
+                  {% csrf_token %}
+                  <button type="submit" class="tb-btn">
+                    {% if u.is_active %}ระงับ{% else %}เปิดใช้{% endif %}
+                  </button>
+                </form>
+                {% if not u.is_superuser %}
+                <form method="post" action="{% url 'admin_user_delete' user_id=u.id %}"
+                      onsubmit="return confirm('ลบ {{ u.username }} และไฟล์ทั้งหมด?')">
+                  {% csrf_token %}
+                  <button type="submit" class="tb-btn danger">ลบ</button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">ไม่พบผู้ใช้</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Quota Modal -->
+<div id="quota-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.4);align-items:center;justify-content:center">
+  <div style="background:var(--bg);border-radius:var(--radius-lg);border:0.5px solid var(--border);width:100%;max-width:380px;box-shadow:0 16px 48px rgba(0,0,0,0.2)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:0.5px solid var(--border)">
+      <h3 style="font-size:14px;font-weight:600">ตั้ง Quota — <span id="qm-username"></span></h3>
+      <button onclick="closeQuotaModal()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:20px;line-height:1">×</button>
+    </div>
+    <form method="post" id="quota-form">
+      {% csrf_token %}
+      <div style="padding:20px">
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
+          ค่า default ของระบบ: <strong id="qm-default"></strong>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <label style="font-size:13px;font-weight:500;flex-shrink:0">Quota เฉพาะบุคคล</label>
+          <input type="number" name="custom_quota_gb" id="qm-input"
+            min="0" max="99999"
+            style="flex:1;height:36px;padding:0 10px;border:0.5px solid var(--border);border-radius:var(--radius);background:var(--bg);color:var(--text);font-size:13px;font-family:inherit">
+          <span style="font-size:13px;color:var(--text-muted);flex-shrink:0">GB</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.6">
+          เว้นว่าง = ใช้ default ของระบบ<br>
+          0 = ไม่จำกัด | ≥1 = จำกัดตามที่กรอก
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-top:0.5px solid var(--border);gap:8px">
+        <button type="button" onclick="resetQuota()" class="btn-outline" style="font-size:12px">
+          รีเซ็ตเป็น default
+        </button>
+        <div style="display:flex;gap:8px">
+          <button type="button" onclick="closeQuotaModal()" class="btn-outline">ยกเลิก</button>
+          <button type="submit" class="btn-primary">บันทึก</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openQuotaModal(userId, username, currentQuota, defaultQuota) {
+  document.getElementById('qm-username').textContent = username;
+  document.getElementById('qm-default').textContent = defaultQuota === 0 ? 'ไม่จำกัด' : defaultQuota + ' GB';
+  document.getElementById('qm-input').value = currentQuota !== '' ? currentQuota : '';
+  document.getElementById('quota-form').action = '/nas-admin/users/' + userId + '/quota/';
+  document.getElementById('quota-modal').style.display = 'flex';
+}
+
+function closeQuotaModal() {
+  document.getElementById('quota-modal').style.display = 'none';
+}
+
+function resetQuota() {
+  document.getElementById('qm-input').value = '';
+  document.getElementById('quota-form').submit();
+}
+
+document.getElementById('quota-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeQuotaModal();
+});
+</script>
+{% endblock %}

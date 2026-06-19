@@ -1,0 +1,72 @@
+{% extends 'app/mobile/base_mobile.html' %}
+{% load static %}
+
+{% block title %}{% if page_title == 'Starred' %}ดาวโปรด{% else %}ถังขยะ{% endif %} — NAS Drive{% endblock %}
+{% block nav_starred %}{% if page_title == 'Starred' %}active{% endif %}{% endblock %}
+{% block nav_trash %}{% if page_title == 'Trash' %}active{% endif %}{% endblock %}
+
+{% block topbar %}
+<a href="/" class="m-icon-btn">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="15 18 9 12 15 6"/></svg>
+</a>
+<span class="m-topbar-title">
+  {% if page_title == 'Starred' %}⭐ ดาวโปรด{% else %}🗑 ถังขยะ{% endif %}
+</span>
+{% if page_title == 'Trash' and nodes %}
+<form method="post" action="{% url 'empty_trash' %}" onsubmit="return confirm('ลบทุกอย่างในถังขยะ?')">
+  {% csrf_token %}
+  <button type="submit" class="m-icon-btn" style="color:#ef4444;font-size:12px;width:auto;padding:0 8px">ล้างทั้งหมด</button>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% if nodes %}
+<div class="m-file-list">
+  {% for node in nodes %}
+  <div class="m-file-row">
+    <div class="m-file-row-icon">
+      {% if node.is_folder %}
+      <svg viewBox="0 0 24 24" fill="#f59e0b" width="28" height="28"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      {% else %}
+      {% include 'app/partials/file_icon.html' with ext=node.extension size=28 %}
+      {% endif %}
+    </div>
+    <div class="m-file-row-info" onclick="{% if not node.is_trashed %}location.href='/file/{{ node.id }}/preview/'{% endif %}">
+      <div class="m-file-row-name">{{ node.name }}</div>
+      <div class="m-file-row-meta">
+        {{ node.human_size }}
+        {% if node.is_trashed and node.trashed_at %} · ลบเมื่อ {{ node.trashed_at|date:"d M Y" }}{% endif %}
+      </div>
+    </div>
+    <div style="display:flex;gap:4px">
+      {% if node.is_trashed %}
+      <form method="post" action="{% url 'restore_node' node_id=node.id %}">
+        {% csrf_token %}
+        <button type="submit" class="m-icon-btn" title="กู้คืน">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.7"/></svg>
+        </button>
+      </form>
+      {% else %}
+      <button onclick="openAction('{{ node.id }}','{{ node.name|escapejs }}',{{ node.is_folder|yesno:'true,false' }})"
+        class="m-icon-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+      </button>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="m-empty">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" width="56" height="56" style="color:var(--bg3)">
+    {% if page_title == 'Starred' %}
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+    {% else %}
+    <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+    {% endif %}
+  </svg>
+  <p>{% if page_title == 'Starred' %}ยังไม่มีไฟล์ที่ติดดาว{% else %}ถังขยะว่างเปล่า{% endif %}</p>
+</div>
+{% endif %}
+{% endblock %}

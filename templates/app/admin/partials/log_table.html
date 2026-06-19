@@ -1,0 +1,47 @@
+{% if logs %}
+<table class="admin-table">
+  <thead>
+    <tr>
+      <th>เวลา</th>
+      <th>ผู้ใช้</th>
+      <th>กิจกรรม</th>
+      <th>ไฟล์/รายละเอียด</th>
+      <th>IP</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for log in logs %}
+    <tr>
+      <td style="font-size:12px;color:var(--text-muted);white-space:nowrap">
+        {{ log.created_at|date:"d M Y, H:i" }}
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="user-avatar sm">{{ log.user.username|first|upper }}</div>
+          <span style="font-size:13px">{{ log.user.username }}</span>
+        </div>
+      </td>
+      <td>
+        <span class="action-badge action-{{ log.action }}">
+          {% if log.action == 'upload' %}⬆ Upload
+          {% elif log.action == 'download' %}⬇ Download
+          {% elif log.action == 'delete' %}🗑 Delete
+          {% elif log.action == 'rename' %}✏ Rename
+          {% elif log.action == 'share' %}🔗 Share
+          {% elif log.action == 'login' %}🔑 Login
+          {% else %}{{ log.action }}{% endif %}
+        </span>
+      </td>
+      <td style="font-size:13px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ log.detail|default:'' }}">
+        {{ log.detail|default:"—" }}
+      </td>
+      <td style="font-size:12px;color:var(--text-muted);font-family:'IBM Plex Mono',monospace">
+        {{ log.ip_address|default:"—" }}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty-note" style="text-align:center;padding:40px">ยังไม่มีบันทึกกิจกรรม</div>
+{% endif %}

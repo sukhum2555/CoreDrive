@@ -1,0 +1,176 @@
+{% extends 'app/mobile/base_mobile.html' %}
+{% load static %}
+{% block title %}จัดการผู้ใช้ — NAS Drive{% endblock %}
+
+{% block topbar %}
+<a href="/nas-admin/" class="m-icon-btn">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="15 18 9 12 15 6"/></svg>
+</a>
+<span class="m-topbar-title">จัดการผู้ใช้</span>
+<a href="#" onclick="event.preventDefault();document.getElementById('add-user-sheet').classList.add('open');document.getElementById('add-user-overlay').classList.add('open')" class="m-icon-btn">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</a>
+{% endblock %}
+
+{% block content %}
+<style>
+  .m-bottomnav { display:none; }
+  .m-content { bottom:0!important; }
+  .m-fab { display:none; }
+</style>
+
+<!-- Search -->
+<div class="m-search-bar">
+  <form method="get">
+    <div class="m-search-wrap">
+      <svg class="m-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="m-search-input" type="text" name="q" value="{{ q|default:'' }}" placeholder="ค้นหา username...">
+    </div>
+  </form>
+</div>
+
+<!-- User List -->
+<div class="m-file-list">
+  {% for u in users %}
+  <div class="m-list-item" style="padding:14px 16px">
+    <div style="width:40px;height:40px;border-radius:50%;background:{% if u.is_superuser %}#7c3aed{% elif u.is_staff %}#0891b2{% else %}#2563eb{% endif %};display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0">
+      {{ u.username|first|upper }}
+    </div>
+    <div class="m-list-info">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:14px;font-weight:500">{{ u.username }}</span>
+        {% if u.is_superuser %}<span class="m-pill m-pill-blue">super</span>
+        {% elif u.is_staff %}<span class="m-pill" style="background:#e0f2fe;color:#0369a1">staff</span>
+        {% else %}<span class="m-pill m-pill-gray">user</span>{% endif %}
+        {% if not u.is_active %}<span class="m-pill m-pill-amber">ระงับ</span>{% endif %}
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">
+        {{ u.storage_human }} ·
+        {% if u.is_staff or u.is_superuser %}ไม่จำกัด
+        {% elif u.custom_quota_gb is not None %}quota: {% if u.custom_quota_gb == 0 %}ไม่จำกัด{% else %}{{ u.custom_quota_gb }} GB{% endif %}
+        {% else %}default: {% if default_quota == 0 %}ไม่จำกัด{% else %}{{ default_quota }} GB{% endif %}{% endif %}
+      </div>
+    </div>
+    <button onclick="openUserMenu({{ u.id }},'{{ u.username|escapejs }}',{{ u.is_active|yesno:'true,false' }},{{ u.is_superuser|yesno:'true,false' }},{% if u.custom_quota_gb is not None %}{{ u.custom_quota_gb }}{% else %}''{% endif %})"
+      style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+    </button>
+  </div>
+  {% empty %}
+  <div class="m-empty"><p>ไม่พบผู้ใช้</p></div>
+  {% endfor %}
+</div>
+
+<!-- User Action Sheet -->
+<div class="m-sheet-overlay" id="user-action-overlay" onclick="closeUserMenu()"></div>
+<div class="m-sheet" id="user-action-sheet">
+  <div class="m-sheet-handle"></div>
+  <div class="m-sheet-title" id="uas-title"></div>
+  <div id="uas-body"></div>
+  <div style="height:8px"></div>
+</div>
+
+<!-- Quota Sheet -->
+<div class="m-sheet-overlay" id="quota-overlay" onclick="closeQuota()"></div>
+<div class="m-sheet" id="quota-sheet">
+  <div class="m-sheet-handle"></div>
+  <div class="m-sheet-title">ตั้ง Quota</div>
+  <form method="post" id="quota-form">
+    {% csrf_token %}
+    <div style="padding:16px">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">ค่า default ของระบบ: <strong>{% if default_quota == 0 %}ไม่จำกัด{% else %}{{ default_quota }} GB{% endif %}</strong></p>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="number" name="custom_quota_gb" id="quota-input" min="0" max="99999" class="m-form-input" placeholder="เว้นว่าง = ใช้ default">
+        <span style="font-size:14px;color:var(--text-muted);flex-shrink:0">GB</span>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:8px">0 = ไม่จำกัด | เว้นว่าง = ใช้ค่า default</p>
+    </div>
+    <div style="padding:0 16px 16px;display:flex;gap:8px">
+      <button type="button" onclick="closeQuota()" style="flex:1;height:44px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;font-size:15px;font-family:inherit;cursor:pointer">ยกเลิก</button>
+      <button type="submit" style="flex:2;height:44px;background:#2563eb;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer">บันทึก</button>
+    </div>
+  </form>
+</div>
+
+<!-- Add User Sheet -->
+<div class="m-sheet-overlay" id="add-user-overlay" onclick="this.classList.remove('open');document.getElementById('add-user-sheet').classList.remove('open')"></div>
+<div class="m-sheet" id="add-user-sheet">
+  <div class="m-sheet-handle"></div>
+  <div class="m-sheet-title">เพิ่มผู้ใช้ใหม่</div>
+  <form method="post" action="{% url 'admin_user_add' %}">
+    {% csrf_token %}
+    <div style="padding:0 16px 8px">
+      <div class="m-form-group"><label class="m-form-label">ชื่อผู้ใช้</label><input type="text" name="username" class="m-form-input" placeholder="username" required></div>
+      <div class="m-form-group"><label class="m-form-label">อีเมล</label><input type="email" name="email" class="m-form-input" placeholder="email@example.com"></div>
+      <div class="m-form-group"><label class="m-form-label">รหัสผ่าน</label><input type="password" name="password" class="m-form-input" placeholder="••••••••" required></div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:16px;cursor:pointer">
+        <input type="checkbox" name="is_staff" style="width:18px;height:18px"> ให้สิทธิ์ Staff
+      </label>
+    </div>
+    <div style="padding:0 16px 16px;display:flex;gap:8px">
+      <button type="button" onclick="document.getElementById('add-user-overlay').classList.remove('open');document.getElementById('add-user-sheet').classList.remove('open')"
+        style="flex:1;height:44px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;font-size:15px;font-family:inherit;cursor:pointer">ยกเลิก</button>
+      <button type="submit" style="flex:2;height:44px;background:#2563eb;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;font-family:inherit;cursor:pointer">เพิ่มผู้ใช้</button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let _uid, _uname;
+
+function openUserMenu(uid, uname, isActive, isSuperuser, currentQuota) {
+  _uid = uid; _uname = uname;
+  document.getElementById('uas-title').textContent = uname;
+  const body = document.getElementById('uas-body');
+  let html = '';
+  if (!isSuperuser) {
+    html += `<div class="m-sheet-item" onclick="openQuota(${uid},'${uname}',${JSON.stringify(currentQuota)})">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+      ตั้ง Quota
+    </div>`;
+    html += `<div class="m-sheet-sep"></div>`;
+    html += `<form method="post" action="/nas-admin/users/${uid}/toggle/">{% csrf_token %}
+      <button type="submit" class="m-sheet-item" style="width:100%;background:none;border:none;font-family:inherit;font-size:15px;cursor:pointer;text-align:left">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+          ${isActive ? '<circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>' : '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'}
+        </svg>
+        ${isActive ? 'ระงับผู้ใช้' : 'เปิดใช้งาน'}
+      </button>
+    </form>`;
+    html += `<div class="m-sheet-sep"></div>`;
+    html += `<form method="post" action="/nas-admin/users/${uid}/delete/" onsubmit="return confirm('ลบ ${uname} และไฟล์ทั้งหมด?')">{% csrf_token %}
+      <button type="submit" class="m-sheet-item danger" style="width:100%;background:none;border:none;font-family:inherit;font-size:15px;cursor:pointer;text-align:left;color:#ef4444">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+        ลบผู้ใช้
+      </button>
+    </form>`;
+  }
+  body.innerHTML = html;
+  document.getElementById('user-action-overlay').classList.add('open');
+  document.getElementById('user-action-sheet').classList.add('open');
+}
+
+function closeUserMenu() {
+  document.getElementById('user-action-overlay').classList.remove('open');
+  document.getElementById('user-action-sheet').classList.remove('open');
+}
+
+function openQuota(uid, uname, currentQuota) {
+  closeUserMenu();
+  document.getElementById('quota-form').action = `/nas-admin/users/${uid}/quota/`;
+  document.getElementById('quota-input').value = currentQuota !== null ? currentQuota : '';
+  setTimeout(() => {
+    document.getElementById('quota-overlay').classList.add('open');
+    document.getElementById('quota-sheet').classList.add('open');
+  }, 300);
+}
+
+function closeQuota() {
+  document.getElementById('quota-overlay').classList.remove('open');
+  document.getElementById('quota-sheet').classList.remove('open');
+}
+</script>
+{% endblock %}

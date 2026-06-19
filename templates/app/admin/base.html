@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Admin{% endblock %} — NAS Drive</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'app/css/main.css' %}">
+  <link rel="stylesheet" href="{% static 'app/css/admin.css' %}">
+</head>
+<body class="admin-body">
+
+<div class="admin-layout">
+
+  <!-- Sidebar -->
+  <aside class="admin-sidebar">
+    <div class="admin-brand">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="white" width="16" height="16">
+          <path d="M2 20h20v-2H2v2zm2-4h16v-2H4v2zm0-4h16v-2H4v2zm0-8v6h16V4H4z"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">NAS Drive</div>
+        <div class="brand-sub">Admin Panel</div>
+      </div>
+    </div>
+
+    <nav class="admin-nav">
+      <a href="{% url 'admin_dashboard' %}" class="admin-nav-item {% if active == 'dashboard' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="9"/><rect x="14" y="14" width="7" height="9"/></svg>
+        Dashboard
+      </a>
+      <a href="{% url 'admin_users' %}" class="admin-nav-item {% if active == 'users' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        จัดการ Users
+      </a>
+      <a href="{% url 'admin_logs' %}" class="admin-nav-item {% if active == 'logs' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Logs กิจกรรม
+      </a>
+      <a href="{% url 'admin_settings' %}" class="admin-nav-item {% if active == 'settings' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M12 2v2m0 16v2m7.07-5.07l-1.41-1.41M4.93 19.07l1.41-1.41M2 12h2m16 0h2"/></svg>
+        ตั้งค่าระบบ
+      </a>
+    </nav>
+
+    <div class="admin-sidebar-footer">
+      <a href="{% url 'index' %}" class="admin-nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M15 18l-6-6 6-6"/></svg>
+        กลับหน้าหลัก
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="admin-main">
+    <!-- Top bar -->
+    <header class="admin-topbar">
+      <div class="admin-page-title">{% block page_title %}{% endblock %}</div>
+      <div class="admin-topbar-right">
+        {% if messages %}
+          {% for msg in messages %}
+          <div class="inline-msg inline-msg-{{ msg.tags }}">{{ msg }}</div>
+          {% endfor %}
+        {% endif %}
+        <div class="admin-user">
+          <div class="avatar" style="width:30px;height:30px;font-size:12px">{{ request.user.username|first|upper }}</div>
+          <span style="font-size:13px;color:var(--text-muted)">{{ request.user.username }}</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <div class="admin-content">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+
+{% load static %}
+<script src="{% static 'app/js/admin.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

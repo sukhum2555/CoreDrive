@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ root.name }} — NAS Drive Share</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Sarabun', system-ui, sans-serif; min-height: 100vh; background: #f8fafc; color: #0f172a; }
+
+    .topbar {
+      background: #fff; border-bottom: 0.5px solid #e2e8f0;
+      padding: 0 24px; height: 56px;
+      display: flex; align-items: center; gap: 16px;
+      position: sticky; top: 0; z-index: 10;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .logo-icon { width: 30px; height: 30px; background: #2563eb; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+    .logo-name { font-size: 14px; font-weight: 600; color: #0f172a; }
+    .topbar-meta { margin-left: auto; font-size: 12px; color: #64748b; }
+
+    .expiry-bar {
+      background: #fffbeb; border-bottom: 0.5px solid #fde68a;
+      padding: 8px 24px; font-size: 12px; color: #92400e;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .expiry-bar.urgent { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+
+    .container { max-width: 860px; margin: 0 auto; padding: 24px 20px; }
+
+    .folder-header { margin-bottom: 20px; }
+    .folder-header h1 { font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+
+    /* breadcrumb */
+    .breadcrumb { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; font-size: 13px; margin-top: 8px; }
+    .bc-item { color: #2563eb; text-decoration: none; }
+    .bc-item:hover { text-decoration: underline; }
+    .bc-sep { color: #94a3b8; }
+    .bc-current { color: #64748b; }
+
+    /* file list */
+    .file-list { background: #fff; border: 0.5px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+    .list-header {
+      display: grid; grid-template-columns: 32px 1fr 100px 120px 110px;
+      gap: 12px; padding: 10px 16px;
+      font-size: 11px; font-weight: 500; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em;
+      border-bottom: 0.5px solid #e2e8f0; background: #f8fafc;
+    }
+    .file-row {
+      display: grid; grid-template-columns: 32px 1fr 100px 120px 110px;
+      gap: 12px; align-items: center; padding: 10px 16px;
+      border-bottom: 0.5px solid #f1f5f9; text-decoration: none; color: #0f172a;
+      transition: background 0.1s;
+    }
+    .file-row:last-child { border-bottom: none; }
+    .file-row:hover { background: #f8fafc; }
+    .file-row.folder-row { cursor: pointer; }
+    .row-name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row-size { font-size: 12px; color: #64748b; }
+    .row-date { font-size: 12px; color: #64748b; }
+    .row-action { display: flex; justify-content: flex-end; }
+
+    .dl-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      height: 28px; padding: 0 10px;
+      background: #2563eb; color: #fff;
+      border-radius: 6px; font-size: 12px; font-weight: 500;
+      text-decoration: none; border: none; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .dl-btn:hover { background: #1d4ed8; }
+
+    .empty-state { text-align: center; padding: 48px; color: #64748b; font-size: 14px; }
+
+    /* folder icon SVG inline */
+    .folder-svg { flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="white" width="16" height="16">
+        <path d="M2 20h20v-2H2v2zm2-4h16v-2H4v2zm0-4h16v-2H4v2zm0-8v6h16V4H4z"/>
+      </svg>
+    </div>
+    <span class="logo-name">NAS Drive</span>
+  </div>
+  <span class="topbar-meta">โฟลเดอร์ที่แชร์</span>
+</div>
+
+{% if link.expires_at %}
+<div class="expiry-bar {% if hours_left is not None and hours_left < 24 %}urgent{% endif %}">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+  {% if days_left == 0 %}
+    ลิงก์นี้จะหมดอายุใน {{ hours_left }} ชั่วโมง
+  {% else %}
+    ลิงก์นี้จะหมดอายุใน {{ days_left }} วัน ({{ link.expires_at|date:"d M Y, H:i" }})
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="container">
+  <div class="folder-header">
+    <h1>
+      <svg viewBox="0 0 24 24" fill="#fbbf24" width="24" height="24" class="folder-svg">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      </svg>
+      {{ root.name }}
+    </h1>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+      <a href="{% url 'shared_file' token=link.token %}" class="bc-item">{{ root.name }}</a>
+      {% for crumb in breadcrumb %}
+        <span class="bc-sep">›</span>
+        {% if not forloop.last %}
+          <a href="{% url 'shared_folder_browse' token=link.token folder_id=crumb.id %}" class="bc-item">{{ crumb.name }}</a>
+        {% else %}
+          <span class="bc-current">{{ crumb.name }}</span>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if not folders and not files %}
+  <div class="file-list">
+    <div class="empty-state">โฟลเดอร์นี้ว่างเปล่า</div>
+  </div>
+  {% else %}
+  <div class="file-list">
+    <div class="list-header">
+      <div></div>
+      <div>ชื่อ</div>
+      <div>ขนาด</div>
+      <div>แก้ไขล่าสุด</div>
+      <div></div>
+    </div>
+
+    {% for folder in folders %}
+    <a href="{% url 'shared_folder_browse' token=link.token folder_id=folder.id %}" class="file-row folder-row">
+      <svg viewBox="0 0 22 18" width="22" height="18" class="folder-svg">
+        <path d="M0 2.5C0 1.12 1.12 0 2.5 0H8.5l2.5 2.5H19.5C20.88 2.5 22 3.62 22 5V15.5C22 16.88 20.88 18 19.5 18H2.5C1.12 18 0 16.88 0 15.5V2.5z" fill="#fbbf24"/>
+      </svg>
+      <span class="row-name">{{ folder.name }}</span>
+      <span class="row-size">—</span>
+      <span class="row-date">{{ folder.updated_at|date:"d M Y" }}</span>
+      <span class="row-action"></span>
+    </a>
+    {% endfor %}
+
+    {% for file in files %}
+    <div class="file-row">
+      <svg viewBox="0 0 20 24" width="20" height="24">
+        <path d="M0 2C0 .9.9 0 2 0h11l7 7v15c0 1.1-.9 2-2 2H2a2 2 0 0 1-2-2V2z" fill="#e2e8f0"/>
+        <path d="M13 0l7 7h-5c-1.1 0-2-.9-2-2V0z" fill="#cbd5e1"/>
+      </svg>
+      <span class="row-name" title="{{ file.name }}">{{ file.name }}</span>
+      <span class="row-size">{{ file.human_size }}</span>
+      <span class="row-date">{{ file.updated_at|date:"d M Y" }}</span>
+      <span class="row-action">
+        {% if link.allow_download %}
+        <a href="{% url 'shared_file_download' token=link.token file_id=file.id %}" class="dl-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          ดาวน์โหลด
+        </a>
+        {% endif %}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+</body>
+</html>

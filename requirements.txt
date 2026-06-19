@@ -1,0 +1,4 @@
+Django>=4.2,<5.0
+Pillow>=10.0
+python-magic>=0.4.27
+psutil>=5.9

@@ -1,0 +1,716 @@
+{% extends 'app/admin/base.html' %}
+{% block title %}ตั้งค่าระบบ{% endblock %}
+{% block page_title %}ตั้งค่าระบบ{% endblock %}
+
+{% block content %}
+
+<form method="post" action="{% url 'admin_settings' %}">
+{% csrf_token %}
+
+<div class="settings-grid">
+
+  <!-- Storage & Quota -->
+  <div class="admin-card">
+    <div class="admin-card-header">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+        Storage & Quota
+      </h3>
+    </div>
+    <div class="admin-card-body">
+      <div class="form-group">
+        <label class="form-label">NAS Storage Path</label>
+        <div class="path-picker-wrap">
+          <input type="text" name="storage_root" id="storage-root-input"
+                 value="{{ settings.storage_root }}" class="form-input mono"
+                 placeholder="C:\NAS\storage หรือ /mnt/nas/storage">
+          <button type="button" class="path-picker-btn" id="open-picker-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            เลือก
+          </button>
+        </div>
+        <div class="form-hint">โฟลเดอร์หลักที่เก็บไฟล์ทั้งหมด</div>
+      </div>
+
+      <!-- Storage Picker Modal -->
+      <div class="picker-modal" id="picker-modal" style="display:none">
+        <div class="picker-inner">
+          <div class="picker-header">
+            <span class="picker-title" id="picker-title">เลือกโฟลเดอร์</span>
+            <button type="button" class="picker-close" id="picker-close">×</button>
+          </div>
+
+          <!-- Tab bar -->
+          <div class="picker-tabs">
+            <button type="button" class="picker-tab active" id="tab-drives" onclick="switchTab('drives')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+              Drive
+            </button>
+            <button type="button" class="picker-tab" id="tab-browse" onclick="switchTab('browse')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              Locations
+            </button>
+          </div>
+
+          <!-- Drive list -->
+          <div class="picker-pane" id="pane-drives">
+            <div class="picker-loading" id="drives-loading">กำลังโหลด...</div>
+            <div id="drives-list"></div>
+          </div>
+
+          <!-- Directory browser -->
+          <div class="picker-pane" id="pane-browse" style="display:none">
+            <div class="picker-breadcrumb" id="browse-breadcrumb"></div>
+            <div class="picker-loading" id="browse-loading" style="display:none">กำลังโหลด...</div>
+            <div id="browse-list"></div>
+          </div>
+
+          <div class="picker-footer">
+            <div class="picker-selected-path" id="picker-selected-path">ยังไม่ได้เลือก</div>
+            <div style="display:flex;gap:8px">
+              <button type="button" class="btn-outline" id="picker-cancel-btn">ยกเลิก</button>
+              <button type="button" class="btn-primary" id="picker-confirm-btn" disabled>เลือกโฟลเดอร์นี้</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:16px">
+        <label class="form-label">Default Quota ต่อ User (GB)</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="number" name="default_quota_gb" value="{{ settings.default_quota_gb }}" class="form-input" style="width:120px" min="1" max="99999">
+          <span style="font-size:13px;color:var(--text-muted)">GB</span>
+        </div>
+        <div class="form-hint">ใส่ 0 เพื่อไม่จำกัด</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Max Upload Size ต่อไฟล์ (GB)</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="number" name="max_upload_gb" value="{{ settings.max_upload_gb }}" class="form-input" style="width:120px" min="1" max="100">
+          <span style="font-size:13px;color:var(--text-muted)">GB</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trash retention -->
+  <div class="admin-card">
+    <div class="admin-card-header">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        ถังขยะ & Retention
+      </h3>
+    </div>
+    <div class="admin-card-body">
+      <div class="form-group">
+        <label class="form-label">เก็บไฟล์ในถังขยะ (วัน)</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="number" name="trash_retention_days" value="{{ settings.trash_retention_days }}" class="form-input" style="width:100px" min="0" max="365">
+          <span style="font-size:13px;color:var(--text-muted)">วัน (0 = ลบทันที)</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Auto purge trash</label>
+        <label class="form-check">
+          <input type="checkbox" name="auto_purge" {% if settings.auto_purge %}checked{% endif %}>
+          เปิดใช้งานการลบอัตโนมัติ
+        </label>
+        <div class="form-hint">ต้องตั้ง Task Scheduler / cron ด้วย</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Share link หมดอายุใน (วัน)</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="number" name="share_expire_days" value="{{ settings.share_expire_days }}" class="form-input" style="width:100px" min="0" max="3650">
+          <span style="font-size:13px;color:var(--text-muted)">วัน (0 = ไม่มีวันหมดอายุ)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Security -->
+  <div class="admin-card">
+    <div class="admin-card-header">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Security
+      </h3>
+    </div>
+    <div class="admin-card-body">
+      <div class="form-group">
+        <label class="form-label">อนุญาต Register ใหม่</label>
+        <label class="form-check">
+          <input type="checkbox" name="allow_register" {% if settings.allow_register %}checked{% endif %}>
+          เปิดให้สมัครสมาชิกได้เอง
+        </label>
+      </div>
+      <div class="form-group">
+        <label class="form-label">บันทึก Activity Log</label>
+        <label class="form-check">
+          <input type="checkbox" name="enable_logging" {% if settings.enable_logging %}checked{% endif %}>
+          เปิดใช้ Activity Logging
+        </label>
+      </div>
+      <div class="form-group">
+        <label class="form-label">เก็บ Log (วัน)</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="number" name="log_retention_days" value="{{ settings.log_retention_days }}" class="form-input" style="width:100px" min="1" max="3650">
+          <span style="font-size:13px;color:var(--text-muted)">วัน</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- System info (readonly) -->
+  <div class="admin-card">
+    <div class="admin-card-header">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        ข้อมูลระบบ
+      </h3>
+    </div>
+    <div class="admin-card-body">
+      <div class="info-row"><span>Django Version</span><span class="mono">{{ django_version }}</span></div>
+      <div class="info-row"><span>Python Version</span><span class="mono">{{ python_version }}</span></div>
+      <div class="info-row"><span>Database</span><span class="mono">SQLite</span></div>
+      <div class="info-row"><span>Storage Path</span><span class="mono" style="font-size:11px;word-break:break-all">{{ settings.storage_root }}</span></div>
+      <div class="info-row"><span>DEBUG Mode</span>
+        <span class="badge-pill {% if debug %}pill-amber{% else %}pill-teal{% endif %}">
+          {% if debug %}ON{% else %}OFF{% endif %}
+        </span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ─── Backup Section ─────────────────────────────────────────────── -->
+<div class="admin-card" style="margin-top:16px">
+  <div class="admin-card-header">
+    <h3>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Backup & Recovery
+    </h3>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="backup-running-badge" style="display:none;font-size:11px;background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:20px">กำลัง Backup...</span>
+      <button type="button" class="tb-btn" onclick="submitBackupRun()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Backup ทันที
+      </button>
+    </div>
+  </div>
+  <div class="admin-card-body">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px">
+
+      <!-- Left: destination + versions -->
+      <div>
+        <div class="form-group">
+          <label class="form-label">เปิดใช้งาน Backup อัตโนมัติ</label>
+          <label class="form-check">
+            <input type="checkbox" name="backup_enabled" {% if backup_cfg.enabled %}checked{% endif %}>
+            เปิดใช้ระบบ Backup
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Destination Path (ปลายทาง)</label>
+          <div style="display:flex;gap:8px">
+            <input type="text" name="backup_destination" id="backup-dest-input"
+                   value="{{ backup_cfg.destination_path }}"
+                   class="form-input mono" placeholder="D:\Backup หรือ /mnt/backup">
+            <button type="button" class="path-picker-btn" id="backup-picker-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              เลือก
+            </button>
+          </div>
+          <div class="form-hint">โฟลเดอร์ปลายทางที่เข้าถึงได้จากเครื่อง server</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">เก็บ backup กี่รุ่น (Versioning)</label>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="number" name="backup_keep_versions" value="{{ backup_cfg.keep_versions }}"
+                   class="form-input" style="width:80px" min="1" max="30">
+            <span style="font-size:13px;color:var(--text-muted)">รุ่น (version เก่าจะถูกลบอัตโนมัติ)</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-check">
+            <input type="checkbox" name="backup_include_trashed" {% if backup_cfg.include_trashed %}checked{% endif %}>
+            รวมไฟล์ในถังขยะด้วย
+          </label>
+        </div>
+      </div>
+
+      <!-- Right: schedule -->
+      <div>
+        <div class="form-group">
+          <label class="form-label">กำหนดเวลาอัตโนมัติ (Schedule)</label>
+          <select name="backup_schedule" class="sort-select" style="height:36px;width:100%" id="backup-schedule-sel">
+            <option value="manual" {% if backup_cfg.schedule == 'manual' %}selected{% endif %}>Manual เท่านั้น</option>
+            <option value="daily"  {% if backup_cfg.schedule == 'daily'  %}selected{% endif %}>ทุกวัน</option>
+            <option value="weekly" {% if backup_cfg.schedule == 'weekly' %}selected{% endif %}>ทุกสัปดาห์</option>
+          </select>
+        </div>
+        <div id="backup-schedule-opts" {% if backup_cfg.schedule == 'manual' %}style="display:none"{% endif %}>
+          <div class="form-group">
+            <label class="form-label">เวลาที่ทำ (ชั่วโมง 0-23)</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="number" name="backup_schedule_hour" value="{{ backup_cfg.schedule_hour }}"
+                     class="form-input" style="width:70px" min="0" max="23">
+              <span style="font-size:13px;color:var(--text-muted)">นาฬิกา</span>
+            </div>
+          </div>
+          <div class="form-group" id="backup-weekday-group" {% if backup_cfg.schedule != 'weekly' %}style="display:none"{% endif %}>
+            <label class="form-label">วันที่ทำ backup</label>
+            <select name="backup_schedule_weekday" class="sort-select" style="height:36px;width:100%">
+              {% for d,n in weekdays %}
+              <option value="{{ d }}" {% if backup_cfg.schedule_weekday == d %}selected{% endif %}>{{ n }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div style="padding:12px;background:var(--bg2);border-radius:var(--radius);border:0.5px solid var(--border);margin-top:8px">
+          <div style="font-size:12px;font-weight:500;color:var(--text-muted);margin-bottom:6px">ตั้ง Schedule ด้วย Task Scheduler / cron</div>
+          <div style="font-size:11px;color:var(--text-muted);line-height:1.8">
+            <strong>Windows Task Scheduler:</strong><br>
+            <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;font-size:10px">python manage.py run_backup --trigger schedule</code>
+            <br><br>
+            <strong>Linux cron:</strong><br>
+            <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;font-size:10px">0 {{ backup_cfg.schedule_hour }} * * * python manage.py run_backup</code>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Backup History -->
+<div class="admin-card" style="margin-top:16px">
+  <div class="admin-card-header">
+    <h3>ประวัติการ Backup</h3>
+    <button type="button" class="tb-btn" onclick="loadBackupLogs()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      รีเฟรช
+    </button>
+  </div>
+  <div class="admin-card-body" style="padding:0">
+    <table class="admin-table">
+      <thead>
+        <tr><th>เวลา</th><th>Version</th><th>สถานะ</th><th>ไฟล์</th><th>ขนาด</th><th>ใช้เวลา</th><th>Trigger</th></tr>
+      </thead>
+      <tbody id="backup-log-body">
+        <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">กำลังโหลด...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div style="margin-top:20px;display:flex;gap:10px;align-items:center">
+  <button type="submit" class="btn-primary">บันทึกการตั้งค่า</button>
+  <a href="{% url 'admin_dashboard' %}" class="btn-outline" style="display:inline-flex;align-items:center;text-decoration:none">ยกเลิก</a>
+</div>
+
+</form>
+
+<!-- Backup run form — อยู่นอก main form -->
+<form method="post" action="{% url 'admin_backup_run' %}" id="backup-run-form" style="display:none">
+  {% csrf_token %}
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<style>
+.path-picker-wrap { display:flex; gap:8px; }
+.path-picker-wrap .form-input { flex:1; }
+.path-picker-btn {
+  height:36px; padding:0 14px; flex-shrink:0;
+  border:0.5px solid var(--border); border-radius:var(--radius);
+  background:var(--bg); color:var(--text); font-size:13px;
+  font-family:inherit; cursor:pointer; display:flex; align-items:center; gap:6px;
+  transition:background 0.1s;
+}
+.path-picker-btn:hover { background:var(--bg2); }
+
+.picker-modal {
+  position:fixed; inset:0; z-index:600;
+  background:rgba(0,0,0,0.45);
+  display:flex; align-items:center; justify-content:center; padding:20px;
+}
+.picker-inner {
+  background:var(--bg); border-radius:var(--radius-lg);
+  border:0.5px solid var(--border);
+  width:100%; max-width:520px;
+  display:flex; flex-direction:column;
+  max-height:80vh; overflow:hidden;
+  box-shadow:0 16px 48px rgba(0,0,0,0.2);
+}
+.picker-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 18px; border-bottom:0.5px solid var(--border); flex-shrink:0;
+}
+.picker-title { font-size:14px; font-weight:600; color:var(--text); }
+.picker-close {
+  width:28px; height:28px; border:none; background:transparent;
+  font-size:18px; cursor:pointer; color:var(--text-muted);
+  border-radius:6px; display:flex; align-items:center; justify-content:center;
+}
+.picker-close:hover { background:var(--bg2); }
+
+.picker-tabs {
+  display:flex; border-bottom:0.5px solid var(--border);
+  padding:0 12px; gap:4px; flex-shrink:0;
+}
+.picker-tab {
+  display:flex; align-items:center; gap:6px;
+  padding:10px 12px; border:none; background:transparent;
+  font-size:13px; font-family:inherit; cursor:pointer; color:var(--text-muted);
+  border-bottom:2px solid transparent; margin-bottom:-0.5px;
+  transition:color 0.1s;
+}
+.picker-tab:hover { color:var(--text); }
+.picker-tab.active { color:var(--accent); border-bottom-color:var(--accent); font-weight:500; }
+
+.picker-pane { flex:1; overflow-y:auto; padding:8px; min-height:0; }
+.picker-loading { padding:24px; text-align:center; font-size:13px; color:var(--text-muted); }
+
+/* Drive cards */
+.drive-card {
+  display:flex; align-items:center; gap:14px;
+  padding:12px 14px; border:0.5px solid var(--border);
+  border-radius:var(--radius); margin-bottom:6px; cursor:pointer;
+  transition:background 0.1s, border-color 0.1s;
+}
+.drive-card:hover { background:var(--bg2); border-color:var(--border2); }
+.drive-card.selected { border-color:var(--accent); background:var(--accent-light); }
+.drive-card-icon {
+  width:38px; height:38px; background:var(--bg2); border-radius:8px;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  color:var(--accent);
+}
+.drive-card-info { flex:1; min-width:0; }
+.drive-card-name { font-size:13px; font-weight:500; color:var(--text); }
+.drive-card-meta { font-size:11px; color:var(--text-muted); margin-top:2px; }
+.drive-card-bar { height:3px; background:var(--bg3); border-radius:2px; margin-top:6px; overflow:hidden; }
+.drive-card-bar-fill { height:100%; background:var(--accent); border-radius:2px; }
+
+/* Browse entries */
+.browse-entry {
+  display:flex; align-items:center; gap:10px;
+  padding:9px 12px; border-radius:var(--radius);
+  cursor:pointer; transition:background 0.1s;
+  font-size:13px; color:var(--text);
+}
+.browse-entry:hover { background:var(--bg2); }
+.browse-entry.selected { background:var(--accent-light); color:var(--accent); }
+.browse-entry-icon { color:var(--text-muted); flex-shrink:0; }
+.browse-entry-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.browse-entry-count { font-size:11px; color:var(--text-muted); flex-shrink:0; }
+.browse-entry-arrow { color:var(--text-muted); flex-shrink:0; }
+
+.picker-breadcrumb {
+  display:flex; align-items:center; flex-wrap:wrap; gap:2px;
+  padding:8px 10px 4px; font-size:12px;
+}
+.bc-item { color:var(--accent); cursor:pointer; padding:2px 4px; border-radius:4px; }
+.bc-item:hover { background:var(--accent-light); }
+.bc-sep { color:var(--text-muted); }
+.bc-current { color:var(--text-muted); padding:2px 4px; }
+
+.picker-footer {
+  padding:12px 16px; border-top:0.5px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  flex-shrink:0;
+}
+.picker-selected-path {
+  font-size:12px; color:var(--text-muted);
+  font-family:'IBM Plex Mono',monospace;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;
+}
+</style>
+
+<script>
+let selectedPath = null;
+let currentBrowsePath = null;
+
+const modal        = document.getElementById('picker-modal');
+const pathInput    = document.getElementById('storage-root-input');
+const selectedEl   = document.getElementById('picker-selected-path');
+const confirmBtn   = document.getElementById('picker-confirm-btn');
+
+// Open / close
+document.getElementById('open-picker-btn').onclick = () => {
+  modal.style.display = 'flex';
+  selectedPath = pathInput.value || null;
+  updateSelected(selectedPath);
+  loadDrives();
+};
+document.getElementById('picker-close').onclick      = closeModal;
+document.getElementById('picker-cancel-btn').onclick = closeModal;
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+function closeModal() { modal.style.display = 'none'; }
+
+// Confirm
+confirmBtn.onclick = () => {
+  if (selectedPath) {
+    pathInput.value = selectedPath;
+    closeModal();
+  }
+};
+
+function updateSelected(path) {
+  selectedPath = path;
+  if (path) {
+    selectedEl.textContent = path;
+    selectedEl.style.color = 'var(--text)';
+    confirmBtn.disabled = false;
+  } else {
+    selectedEl.textContent = 'ยังไม่ได้เลือก';
+    selectedEl.style.color = 'var(--text-muted)';
+    confirmBtn.disabled = true;
+  }
+}
+
+// Tabs
+function switchTab(tab) {
+  document.getElementById('pane-drives').style.display  = tab === 'drives'  ? 'block' : 'none';
+  document.getElementById('pane-browse').style.display  = tab === 'browse'  ? 'block' : 'none';
+  document.getElementById('tab-drives').classList.toggle('active', tab === 'drives');
+  document.getElementById('tab-browse').classList.toggle('active', tab === 'browse');
+
+  if (tab === 'browse' && !currentBrowsePath) {
+    // เริ่มจาก path ปัจจุบันหรือ drive แรก
+    const startPath = selectedPath || (window._firstDrive || '');
+    if (startPath) browseTo(startPath);
+  }
+}
+
+// ─── Drive tab ──────────────────────────────────────────────────────────────
+
+function loadDrives() {
+  document.getElementById('drives-loading').style.display = 'block';
+  document.getElementById('drives-list').innerHTML = '';
+
+  fetch('/nas-admin/api/storage/drives/')
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('drives-loading').style.display = 'none';
+      const list = document.getElementById('drives-list');
+
+      if (!data.drives || !data.drives.length) {
+        list.innerHTML = '<div class="picker-loading">ไม่พบ Drive</div>';
+        return;
+      }
+
+      window._firstDrive = data.drives[0].mountpoint;
+
+      data.drives.forEach(d => {
+        const card = document.createElement('div');
+        card.className = 'drive-card' + (selectedPath === d.mountpoint ? ' selected' : '');
+        card.innerHTML = `
+          <div class="drive-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+              <ellipse cx="12" cy="5" rx="9" ry="3"/>
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+            </svg>
+          </div>
+          <div class="drive-card-info">
+            <div class="drive-card-name">${escHtml(d.name)}</div>
+            <div class="drive-card-meta">${escHtml(d.used_h)} จาก ${escHtml(d.total_h)} · ว่าง ${escHtml(d.free_h)} · ${d.fstype}</div>
+            <div class="drive-card-bar">
+              <div class="drive-card-bar-fill" style="width:${d.percent}%;${d.percent>90?'background:#dc2626':d.percent>70?'background:#f59e0b':''}"></div>
+            </div>
+          </div>`;
+
+        card.onclick = () => {
+          document.querySelectorAll('.drive-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          updateSelected(d.mountpoint);
+        };
+        list.appendChild(card);
+      });
+    })
+    .catch(() => {
+      document.getElementById('drives-loading').textContent = 'โหลดไม่สำเร็จ';
+    });
+}
+
+// ─── Browse tab ─────────────────────────────────────────────────────────────
+
+function browseTo(path) {
+  document.getElementById('browse-loading').style.display = 'block';
+  document.getElementById('browse-list').innerHTML = '';
+
+  fetch('/nas-admin/api/storage/browse/?path=' + encodeURIComponent(path))
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('browse-loading').style.display = 'none';
+
+      if (data.error) {
+        document.getElementById('browse-list').innerHTML =
+          `<div class="picker-loading" style="color:#dc2626">${escHtml(data.error)}</div>`;
+        return;
+      }
+
+      currentBrowsePath = data.current;
+      renderBreadcrumb(data.current);
+
+      const list = document.getElementById('browse-list');
+
+      // ปุ่ม "เลือกโฟลเดอร์นี้" inline
+      const selectHere = document.createElement('div');
+      selectHere.className = 'browse-entry' + (selectedPath === data.current ? ' selected' : '');
+      selectHere.innerHTML = `
+        <span class="browse-entry-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+        </span>
+        <span class="browse-entry-name" style="font-style:italic;color:var(--text-muted)">— เลือกโฟลเดอร์นี้ —</span>`;
+      selectHere.onclick = () => {
+        document.querySelectorAll('.browse-entry').forEach(e => e.classList.remove('selected'));
+        selectHere.classList.add('selected');
+        updateSelected(data.current);
+      };
+      list.appendChild(selectHere);
+
+      if (!data.entries.length) {
+        const empty = document.createElement('div');
+        empty.className = 'picker-loading';
+        empty.textContent = 'ไม่มีโฟลเดอร์ย่อย';
+        list.appendChild(empty);
+        return;
+      }
+
+      data.entries.forEach(entry => {
+        const row = document.createElement('div');
+        row.className = 'browse-entry';
+        const countStr = entry.items >= 0 ? `${entry.items} รายการ` : 'ไม่มีสิทธิ์';
+        row.innerHTML = `
+          <span class="browse-entry-icon">
+            <svg viewBox="0 0 24 24" fill="#f59e0b" width="16" height="16">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+          </span>
+          <span class="browse-entry-name">${escHtml(entry.name)}</span>
+          <span class="browse-entry-count">${countStr}</span>
+          <span class="browse-entry-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg>
+          </span>`;
+
+        row.onclick = () => browseTo(entry.full_path);
+        list.appendChild(row);
+      });
+    })
+    .catch(() => {
+      document.getElementById('browse-loading').style.display = 'none';
+      document.getElementById('browse-list').innerHTML =
+        '<div class="picker-loading" style="color:#dc2626">โหลดไม่สำเร็จ</div>';
+    });
+}
+
+function renderBreadcrumb(path) {
+  const el = document.getElementById('browse-breadcrumb');
+  const sep = path.includes('\\') ? '\\' : '/';
+  let parts = path.split(sep).filter(Boolean);
+  let html = '';
+
+  // Windows: C: → C:\
+  if (path.match(/^[A-Z]:/i)) {
+    parts = [parts[0] + sep, ...parts.slice(1)];
+  } else {
+    parts = ['/', ...parts];
+  }
+
+  let accumulated = '';
+  parts.forEach((part, i) => {
+    if (i === 0) accumulated = part;
+    else accumulated = accumulated.endsWith(sep) ? accumulated + part : accumulated + sep + part;
+    const p = accumulated;
+    if (i === parts.length - 1) {
+      html += `<span class="bc-current">${escHtml(part)}</span>`;
+    } else {
+      html += `<span class="bc-item" onclick="browseTo('${p.replace(/'/g, "\\'")}')">${escHtml(part)}</span>`;
+      html += `<span class="bc-sep">${sep}</span>`;
+    }
+  });
+  el.innerHTML = html;
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Backup ────────────────────────────────────────────────────────────────
+
+function submitBackupRun() {
+  if (!confirm('เริ่ม Backup ทันทีเลย?')) return;
+  document.getElementById('backup-run-form').submit();
+}
+
+// Schedule toggle
+document.getElementById('backup-schedule-sel')?.addEventListener('change', function() {
+  const opts = document.getElementById('backup-schedule-opts');
+  const wday = document.getElementById('backup-weekday-group');
+  opts.style.display = this.value === 'manual' ? 'none' : 'block';
+  if (wday) wday.style.display = this.value === 'weekly' ? 'block' : 'none';
+});
+
+// Backup picker (reuse existing picker logic)
+document.getElementById('backup-picker-btn')?.addEventListener('click', () => {
+  const modal = document.getElementById('picker-modal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  // override confirm to fill backup dest instead of storage root
+  const origConfirm = document.getElementById('picker-confirm-btn').onclick;
+  document.getElementById('picker-confirm-btn').onclick = () => {
+    if (selectedPath) {
+      document.getElementById('backup-dest-input').value = selectedPath;
+      modal.style.display = 'none';
+    }
+    document.getElementById('picker-confirm-btn').onclick = origConfirm;
+  };
+  loadDrives();
+});
+
+// Load backup logs
+function loadBackupLogs() {
+  fetch('{% url "admin_backup_status" %}')
+    .then(r => r.json())
+    .then(data => {
+      const tbody = document.getElementById('backup-log-body');
+      if (!data.logs.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">ยังไม่มีประวัติ backup</td></tr>';
+        return;
+      }
+      const statusColors = { running:'#1d4ed8', success:'#15803d', failed:'#dc2626' };
+      const statusBg = { running:'#eff6ff', success:'#f0fdf4', failed:'#fef2f2' };
+      tbody.innerHTML = data.logs.map(l => `
+        <tr>
+          <td style="font-size:12px;color:var(--text-muted);white-space:nowrap">${l.started_at}</td>
+          <td style="font-size:12px;font-family:'IBM Plex Mono',monospace">${l.version_name || '—'}</td>
+          <td><span style="font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;background:${statusBg[l.status]};color:${statusColors[l.status]}">${l.status_label}</span></td>
+          <td style="font-size:13px">${l.files_copied.toLocaleString()} ไฟล์</td>
+          <td style="font-size:13px">${l.bytes_human}</td>
+          <td style="font-size:12px;color:var(--text-muted)">${l.duration}</td>
+          <td style="font-size:12px;color:var(--text-muted)">${l.triggered_by}</td>
+        </tr>
+        ${l.error ? `<tr><td colspan="7" style="padding:6px 16px;font-size:11px;color:#dc2626;background:#fef2f2">${l.error}</td></tr>` : ''}
+      `).join('');
+
+      // poll ถ้า backup กำลังรัน
+      if (data.logs.some(l => l.status === 'running')) {
+        document.getElementById('backup-running-badge').style.display = 'inline';
+        setTimeout(loadBackupLogs, 3000);
+      } else {
+        document.getElementById('backup-running-badge').style.display = 'none';
+      }
+    })
+    .catch(() => {});
+}
+
+// โหลด logs เมื่อหน้าพร้อม
+document.addEventListener('DOMContentLoaded', loadBackupLogs);
+</script>
+{% endblock %}

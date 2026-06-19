@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>สมัครสมาชิก — NAS Drive</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Sarabun', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: #f8fafc; color: #0f172a;
+    }
+    .card {
+      width: 100%; max-width: 380px;
+      background: #fff;
+      border: 0.5px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 40px 36px;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; }
+    .logo-icon {
+      width: 40px; height: 40px; background: #2563eb;
+      border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    }
+    .logo-name { font-size: 20px; font-weight: 600; }
+    .logo-sub  { font-size: 12px; color: #64748b; }
+    h2  { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+    .sub { font-size: 13px; color: #64748b; margin-bottom: 28px; }
+    .field { margin-bottom: 16px; }
+    label { display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px; }
+    input[type=text], input[type=email], input[type=password] {
+      width: 100%; height: 40px;
+      border: 0.5px solid #d1d5db; border-radius: 8px;
+      padding: 0 12px; font-size: 14px; font-family: inherit;
+      outline: none; color: #0f172a; background: #fff;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    .btn {
+      width: 100%; height: 40px;
+      background: #2563eb; color: #fff;
+      border: none; border-radius: 8px;
+      font-size: 14px; font-weight: 500; font-family: inherit;
+      cursor: pointer; margin-top: 8px;
+      transition: background 0.15s;
+    }
+    .btn:hover { background: #1d4ed8; }
+    .error {
+      background: #fef2f2; border: 0.5px solid #fecaca;
+      border-radius: 8px; padding: 10px 14px;
+      margin-bottom: 16px; font-size: 13px; color: #dc2626;
+    }
+    .disabled-box {
+      text-align: center; padding: 16px 0;
+    }
+    .disabled-icon { font-size: 40px; margin-bottom: 12px; }
+    .disabled-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+    .disabled-sub { font-size: 13px; color: #64748b; }
+    .login-link {
+      text-align: center; margin-top: 20px;
+      font-size: 13px; color: #64748b;
+    }
+    .login-link a { color: #2563eb; text-decoration: none; font-weight: 500; }
+    .login-link a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="white" width="20" height="20">
+          <path d="M2 20h20v-2H2v2zm2-4h16v-2H4v2zm0-4h16v-2H4v2zm0-8v6h16V4H4z"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-name">NAS Drive</div>
+        <div class="logo-sub">ระบบจัดการไฟล์ส่วนตัว</div>
+      </div>
+    </div>
+
+    {% if disabled %}
+    <div class="disabled-box">
+      <div class="disabled-icon">🔒</div>
+      <div class="disabled-title">ปิดรับสมัครสมาชิก</div>
+      <div class="disabled-sub">ขณะนี้ระบบไม่เปิดให้สมัครสมาชิกใหม่<br>กรุณาติดต่อผู้ดูแลระบบ</div>
+    </div>
+    {% else %}
+    <h2>สมัครสมาชิก</h2>
+    <p class="sub">สร้างบัญชีเพื่อเริ่มใช้งาน NAS Drive</p>
+
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="field">
+        <label for="username">ชื่อผู้ใช้</label>
+        <input type="text" id="username" name="username" autofocus autocomplete="username" value="{{ request.POST.username|default:'' }}">
+      </div>
+      <div class="field">
+        <label for="email">อีเมล <span style="color:#94a3b8;font-weight:400">(ไม่บังคับ)</span></label>
+        <input type="email" id="email" name="email" autocomplete="email" value="{{ request.POST.email|default:'' }}">
+      </div>
+      <div class="field">
+        <label for="password">รหัสผ่าน</label>
+        <input type="password" id="password" name="password" autocomplete="new-password" placeholder="อย่างน้อย 6 ตัวอักษร">
+      </div>
+      <div class="field">
+        <label for="confirm">ยืนยันรหัสผ่าน</label>
+        <input type="password" id="confirm" name="confirm" autocomplete="new-password">
+      </div>
+      <button type="submit" class="btn">สมัครสมาชิก</button>
+    </form>
+    {% endif %}
+
+    <div class="login-link">
+      มีบัญชีอยู่แล้ว? <a href="{% url 'login' %}">เข้าสู่ระบบ</a>
+    </div>
+  </div>
+</body>
+</html>

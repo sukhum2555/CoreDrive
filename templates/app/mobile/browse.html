@@ -1,0 +1,132 @@
+{% extends 'app/mobile/base_mobile.html' %}
+{% load static %}
+
+{% block title %}{% if parent %}{{ parent.name }}{% else %}หน้าหลัก{% endif %} — NAS Drive{% endblock %}
+{% block nav_files %}active{% endblock %}
+
+{% block topbar %}
+<div class="m-topbar-logo">
+  <svg viewBox="0 0 24 24" fill="white" width="16" height="16"><path d="M2 20h20v-2H2v2zm2-4h16v-2H4v2zm0-4h16v-2H4v2zm0-8v6h16V4H4z"/></svg>
+</div>
+{% if parent %}
+<a href="{% if parent.parent %}/folder/{{ parent.parent.id }}/{% else %}/{% endif %}" class="m-icon-btn">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="15 18 9 12 15 6"/></svg>
+</a>
+<span class="m-topbar-title" style="font-size:15px">{{ parent.name }}</span>
+{% else %}
+<span class="m-topbar-title">NAS Drive</span>
+{% endif %}
+<a href="?q=" class="m-icon-btn" id="m-search-toggle">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Search bar (hidden by default) -->
+<div class="m-search-bar" id="m-search-bar" style="display:none">
+  <form method="get">
+    <div class="m-search-wrap">
+      <svg class="m-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input class="m-search-input" type="text" name="q" value="{{ q|default:'' }}" placeholder="ค้นหาไฟล์..." autofocus>
+    </div>
+  </form>
+</div>
+
+<!-- Breadcrumb -->
+{% if breadcrumb %}
+<div class="m-breadcrumb">
+  <a href="/" class="m-bc-item">หน้าหลัก</a>
+  {% for crumb in breadcrumb %}
+  <span class="m-bc-sep">›</span>
+  {% if not forloop.last %}
+  <a href="/folder/{{ crumb.id }}/" class="m-bc-item">{{ crumb.name }}</a>
+  {% else %}
+  <span class="m-bc-current">{{ crumb.name }}</span>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Storage bar (home only) -->
+{% if not parent and not q %}
+<div class="m-storage">
+  <div class="m-storage-label">
+    <span>พื้นที่จัดเก็บ{% if storage_is_quota %} (quota){% endif %}</span>
+    <span>{{ storage_used_human }} / {{ storage_total_human }}</span>
+  </div>
+  <div class="m-storage-bar">
+    <div class="m-storage-fill" style="width:{{ storage_pct }}%;{% if storage_pct > 90 %}background:#ef4444{% elif storage_pct > 70 %}background:#f59e0b{% endif %}"></div>
+  </div>
+</div>
+{% endif %}
+
+{% if q %}
+<div class="m-section">ผลการค้นหา "{{ q }}"</div>
+{% endif %}
+
+<!-- Folders -->
+{% if folders %}
+{% if not q %}<div class="m-section">โฟลเดอร์</div>{% endif %}
+<div class="m-file-list">
+  {% for folder in folders %}
+  <div class="m-file-row" onclick="location.href='/folder/{{ folder.id }}/'">
+    <div class="m-file-row-icon">
+      <svg viewBox="0 0 24 24" fill="#f59e0b" width="28" height="28"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    </div>
+    <div class="m-file-row-info">
+      <div class="m-file-row-name">{{ folder.name }}</div>
+      <div class="m-file-row-meta">{{ folder.updated_at|date:"d M Y" }}</div>
+    </div>
+    <div class="m-file-row-arrow">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Files -->
+{% if files %}
+{% if not q %}<div class="m-section">ไฟล์</div>{% endif %}
+<div class="m-file-list">
+  {% for file in files %}
+  <div class="m-file-row">
+    <div class="m-file-row-icon" onclick="location.href='/file/{{ file.id }}/preview/'">
+      {% include 'app/partials/file_icon.html' with ext=file.extension size=28 %}
+    </div>
+    <div class="m-file-row-info" onclick="location.href='/file/{{ file.id }}/preview/'">
+      <div class="m-file-row-name">{{ file.name }}</div>
+      <div class="m-file-row-meta">{{ file.human_size }} · {{ file.updated_at|date:"d M Y" }}</div>
+    </div>
+    <button onclick="openAction('{{ file.id }}','{{ file.name|escapejs }}',false)"
+      style="background:none;border:none;color:var(--text-muted);padding:4px;cursor:pointer">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+    </button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not folders and not files %}
+<div class="m-empty">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" width="56" height="56" style="color:var(--bg3)"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+  <p>{% if q %}ไม่พบไฟล์ที่ค้นหา{% else %}ยังไม่มีไฟล์{% endif %}</p>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('m-search-toggle')?.addEventListener('click', e => {
+  e.preventDefault();
+  const bar = document.getElementById('m-search-bar');
+  bar.style.display = bar.style.display === 'none' ? 'block' : 'none';
+  if (bar.style.display !== 'none') bar.querySelector('input').focus();
+});
+{% if q %}
+document.getElementById('m-search-bar').style.display = 'block';
+{% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}NAS Drive{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'app/css/main.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-left">
+    <a href="{% url 'index' %}" class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="white" width="16" height="16">
+          <path d="M2 20h20v-2H2v2zm2-4h16v-2H4v2zm0-4h16v-2H4v2zm0-8v6h16V4H4z"/>
+        </svg>
+      </div>
+      <span>NAS Drive</span>
+    </a>
+  </div>
+
+  <form class="search-bar" method="get" action="{% url 'index' %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" width="16" height="16">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input type="text" name="q" value="{{ q|default:'' }}" placeholder="ค้นหาไฟล์และโฟลเดอร์...">
+  </form>
+
+  <div class="header-actions">
+    <button class="icon-btn" id="notif-btn" title="การแจ้งเตือน">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    </button>
+    <div class="user-menu">
+      <div class="avatar">{{ request.user.username|first|upper }}</div>
+      <div class="dropdown-menu" id="user-dropdown">
+        <div class="dropdown-info">
+          <strong>{{ request.user.username }}</strong>
+          <span>{{ request.user.email }}</span>
+        </div>
+        {% if request.user.is_staff or request.user.is_superuser %}
+        <a href="{% url 'admin_dashboard' %}" class="dropdown-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="9"/><rect x="14" y="14" width="7" height="9"/></svg>
+          Admin Panel
+        </a>
+        {% endif %}
+        <form method="post" action="{% url 'logout' %}" style="margin:0">
+          {% csrf_token %}
+          <button type="submit" class="dropdown-item danger" style="width:100%;border:none;background:none;cursor:pointer;text-align:left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            ออกจากระบบ
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Layout -->
+<div class="app-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <button class="upload-btn" id="upload-trigger">
+      <svg viewBox="0 0 24 24" fill="white" width="14" height="14"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+      อัปโหลด
+    </button>
+
+    <nav class="sidebar-nav">
+      <a href="{% url 'index' %}" class="nav-item {% if request.resolver_match.url_name == 'index' or request.resolver_match.url_name == 'browse' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        ทั้งหมด
+      </a>
+      <a href="{% url 'starred' %}" class="nav-item {% if request.resolver_match.url_name == 'starred' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Starred
+      </a>
+      <a href="{% url 'trash' %}" class="nav-item {% if request.resolver_match.url_name == 'trash' %}active{% endif %}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        ถังขยะ
+      </a>
+    </nav>
+
+
+    <!-- Storage / Drives -->
+    <div class="storage-widget">
+      <div class="storage-label">พื้นที่จัดเก็บ</div>
+
+      {% if request.user.is_staff or request.user.is_superuser %}
+      {# admin — แสดง disk จริงทุก drive #}
+      <div id="drives-container">
+        {% if drives %}
+          {% for drive in drives %}
+          <div class="drive-item">
+            <div class="drive-header">
+              <span class="drive-name">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13" style="flex-shrink:0">
+                  <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                  <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+                </svg>
+                {{ drive.name }}
+              </span>
+              <span class="drive-pct">{{ drive.percent|floatformat:0 }}%</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" style="width:{{ drive.percent|floatformat:0 }}%;{% if drive.percent > 90 %}background:#dc2626{% elif drive.percent > 70 %}background:#f59e0b{% endif %}"></div>
+            </div>
+            <div class="drive-sizes">{{ drive.used_h }} / {{ drive.total_h }}</div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="storage-used">ไม่สามารถอ่านข้อมูลดิสก์ได้</div>
+        {% endif %}
+      </div>
+
+      {% else %}
+      {# user ทั่วไป — แสดง quota หรือ disk (ถ้าไม่จำกัด) #}
+      <div class="storage-used">
+        {{ storage_used_human }} จาก {{ storage_total_human }}
+        {% if storage_is_quota %}
+        <span style="font-size:10px;color:var(--text-muted);display:block;margin-top:1px">quota ส่วนตัว</span>
+        {% endif %}
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill" id="user-storage-bar"
+             style="width:{{ storage_pct }}%;{% if storage_pct > 90 %}background:#dc2626{% elif storage_pct > 70 %}background:#f59e0b{% endif %}">
+        </div>
+      </div>
+      <div class="storage-pct">{{ storage_pct }}% ที่ใช้ไป</div>
+      {% endif %}
+
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main-content">
+    <!-- Toast messages -->
+    {% if messages %}
+    <div class="toast-container">
+      {% for msg in messages %}
+      <div class="toast toast-{{ msg.tags }}">
+        {{ msg }}
+        <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal-overlay" id="upload-modal" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>อัปโหลดไฟล์ / โฟลเดอร์</h3>
+      <button class="modal-close" id="upload-close">×</button>
+    </div>
+    <form method="post" action="{% url 'upload_files' %}" enctype="multipart/form-data" id="upload-form">
+      {% csrf_token %}
+      <input type="hidden" name="parent_id" value="{{ parent.id|default:'' }}" id="upload-parent-id">
+      <div id="upload-relative-paths"></div>
+      <div class="drop-zone" id="drop-zone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="40" height="40" style="color:#2563eb;margin-bottom:12px">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <p class="drop-title">ลากไฟล์หรือโฟลเดอร์มาวางที่นี่</p>
+        <p class="drop-sub">หรือ</p>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+          <label class="file-pick-btn">
+            เลือกไฟล์
+            <input type="file" name="files" multiple id="file-input" style="display:none">
+          </label>
+          <label class="file-pick-btn" style="background:var(--bg2);color:var(--text);border:0.5px solid var(--border)">
+            เลือกโฟลเดอร์
+            <input type="file" id="folder-input" style="display:none" webkitdirectory multiple>
+          </label>
+        </div>
+      </div>
+      <div id="file-list-preview"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline" id="upload-cancel">ยกเลิก</button>
+        <button type="submit" class="btn-primary" id="upload-submit" disabled>อัปโหลด</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- New Folder Modal -->
+<div class="modal-overlay" id="folder-modal" style="display:none">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>สร้างโฟลเดอร์ใหม่</h3>
+      <button class="modal-close" id="folder-close">×</button>
+    </div>
+    <form method="post" action="{% url 'create_folder' %}">
+      {% csrf_token %}
+      <input type="hidden" name="parent_id" value="{{ parent.id|default:'' }}">
+      <div class="modal-body">
+        <label class="field-label">ชื่อโฟลเดอร์</label>
+        <input type="text" name="name" class="field-input" value="โฟลเดอร์ใหม่" autofocus id="folder-name-input">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline" id="folder-cancel">ยกเลิก</button>
+        <button type="submit" class="btn-primary">สร้าง</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Rename Modal -->
+<div class="modal-overlay" id="rename-modal" style="display:none">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>เปลี่ยนชื่อ</h3>
+      <button class="modal-close" id="rename-close">×</button>
+    </div>
+    <form method="post" id="rename-form">
+      {% csrf_token %}
+      <div class="modal-body">
+        <label class="field-label">ชื่อใหม่</label>
+        <input type="text" name="name" class="field-input" id="rename-input" autofocus>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-outline" id="rename-cancel">ยกเลิก</button>
+        <button type="submit" class="btn-primary">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Share Modal -->
+<div class="modal-overlay" id="share-modal" style="display:none">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h3>แชร์ไฟล์</h3>
+      <button class="modal-close" id="share-close">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">ลิงก์นี้ใครก็สามารถดาวน์โหลดไฟล์ได้</p>
+      <div class="share-link-box">
+        <input type="text" id="share-url" readonly class="field-input" style="font-size:12px">
+        <button class="btn-primary" id="copy-share-btn" style="flex-shrink:0">คัดลอก</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-outline" id="share-cancel">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<script src="{% static 'app/js/main.js' %}"></script>
+<script src="{% static 'app/js/protect.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

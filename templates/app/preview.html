@@ -1,0 +1,281 @@
+{% extends 'app/base.html' %}
+{% load static %}
+
+{% block title %}{{ node.name }} — NAS Drive{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+  <nav class="breadcrumb">
+    <a href="{% url 'index' %}" class="crumb">หน้าหลัก</a>
+    {% if node.parent %}
+    <span class="crumb-sep">›</span>
+    <a href="{% url 'browse' folder_id=node.parent.id %}" class="crumb">{{ node.parent.name }}</a>
+    {% endif %}
+    <span class="crumb-sep">›</span>
+    <span class="crumb-current">{{ node.name }}</span>
+  </nav>
+  <div class="toolbar-actions">
+    <a href="{% url 'download_file' file_id=node.id %}" class="btn-primary" style="text-decoration:none;font-size:13px;padding:0 14px;height:32px;display:flex;align-items:center;gap:6px;border-radius:8px">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      ดาวน์โหลด
+    </a>
+  </div>
+</div>
+
+{% if is_office %}
+{# ── Excel: SheetJS — height คำนวณจาก viewport ── #}
+<div id="xl-wrap" style="display:flex;flex-direction:column;height:calc(100vh - var(--header-h) - 50px);background:var(--bg);border-top:0.5px solid var(--border);overflow:hidden;">
+  <div id="xl-bar" style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:40px;flex-shrink:0;border-bottom:0.5px solid var(--border);background:var(--bg2);">
+    <div id="xl-tabs" style="display:flex;gap:4px;"></div>
+    <span id="xl-info" style="font-size:11px;color:var(--text-muted);"></span>
+  </div>
+  <div style="flex:1;overflow:hidden;position:relative;">
+    <div id="xl-loading" style="display:flex;align-items:center;justify-content:center;gap:10px;height:100%;font-size:14px;color:var(--text-muted);">
+      <div id="xl-spin"></div>กำลังโหลด Excel...
+    </div>
+    <div id="xl-err" style="display:none;padding:32px;text-align:center;color:#dc2626;font-size:13px;"></div>
+    <div id="xl-tbl-wrap" style="display:none;position:absolute;inset:0;overflow:auto;">
+      <table id="xl-tbl"></table>
+    </div>
+  </div>
+</div>
+
+{% elif is_word %}
+{# ── Word: mammoth.js ── #}
+<div id="wd-wrap" style="height:calc(100vh - var(--header-h) - 50px);overflow-y:auto;overflow-x:hidden;background:#e8eaed;padding:24px 0;box-sizing:border-box;">
+  <div id="wd-loading" style="display:flex;align-items:center;justify-content:center;gap:10px;height:100%;font-size:14px;color:#64748b;">
+    <div id="wd-spin"></div>กำลังโหลด Word...
+  </div>
+  <div id="wd-err" style="display:none;padding:32px;text-align:center;color:#dc2626;font-size:13px;"></div>
+  <div id="wd-body" style="display:none;background:#fff;color:#000;width:794px;max-width:calc(100% - 48px);margin:0 auto;padding:72px 80px;box-shadow:0 2px 8px rgba(0,0,0,0.15);font-family:'Sarabun',Georgia,serif;font-size:14px;line-height:1.8;box-sizing:border-box;"></div>
+</div>
+
+{% elif is_pptx %}
+{# ── PPTX: PPTXjs ── #}
+<div id="pp-wrap" style="height:calc(100vh - var(--header-h) - 50px);overflow-y:auto;overflow-x:hidden;background:#1e1e2e;display:flex;flex-direction:column;align-items:center;">
+  <div id="pp-loading" style="display:flex;align-items:center;gap:10px;margin:auto;font-size:14px;color:#94a3b8;">
+    <div id="pp-spin"></div>กำลังโหลด PowerPoint...
+  </div>
+  <div id="pp-err" style="display:none;margin:auto;padding:32px;text-align:center;color:#f87171;font-size:13px;"></div>
+  <div id="pp-nav" style="display:none;width:100%;background:rgba(15,15,35,0.95);border-bottom:0.5px solid rgba(255,255,255,0.1);padding:10px 20px;box-sizing:border-box;position:sticky;top:0;z-index:10;">
+    <div style="display:flex;align-items:center;justify-content:space-between;max-width:960px;margin:0 auto;">
+      <button onclick="ppNav(-1)" style="height:32px;padding:0 14px;background:rgba(255,255,255,0.1);color:#fff;border:0.5px solid rgba(255,255,255,0.2);border-radius:6px;cursor:pointer;font-size:13px;font-family:inherit;">← ก่อนหน้า</button>
+      <span id="pp-counter" style="font-size:13px;color:#94a3b8;"></span>
+      <button onclick="ppNav(1)" style="height:32px;padding:0 14px;background:rgba(255,255,255,0.1);color:#fff;border:0.5px solid rgba(255,255,255,0.2);border-radius:6px;cursor:pointer;font-size:13px;font-family:inherit;">ถัดไป →</button>
+    </div>
+  </div>
+  <div id="pp-slides" style="padding:24px;width:100%;max-width:1008px;box-sizing:border-box;"></div>
+</div>
+
+{% else %}
+  {% if can_preview %}
+    {% if is_image %}
+    <div class="preview-image-wrap">
+      <img src="{% url 'download_file' file_id=node.id %}" alt="{{ node.name }}" class="preview-image">
+    </div>
+    {% elif is_video %}
+    <video controls class="preview-video">
+      <source src="{% url 'download_file' file_id=node.id %}" type="{{ node.mime_type }}">
+    </video>
+    {% elif is_audio %}
+    <div class="preview-audio-wrap">
+      <audio controls class="preview-audio">
+        <source src="{% url 'download_file' file_id=node.id %}" type="{{ node.mime_type }}">
+      </audio>
+    </div>
+    {% elif is_pdf %}
+    <object data="{% url 'serve_file' file_id=node.id %}" type="application/pdf" class="preview-pdf">
+      <div class="empty-state">
+        <p style="margin-bottom:16px">Browser ไม่รองรับการแสดง PDF โดยตรง</p>
+        <a href="{% url 'download_file' file_id=node.id %}" class="btn-primary" style="text-decoration:none;font-size:13px;padding:0 20px;height:36px;display:inline-flex;align-items:center;gap:6px;border-radius:8px">ดาวน์โหลด PDF</a>
+      </div>
+    </object>
+    {% elif is_text and text_content %}
+    <div class="preview-text"><pre>{{ text_content }}</pre></div>
+    {% endif %}
+  {% else %}
+  <div class="empty-state">
+    {% include 'app/partials/file_icon.html' with ext=node.extension size=64 %}
+    <p style="margin-top:16px">ไม่สามารถแสดงตัวอย่างไฟล์ประเภทนี้ได้</p>
+    <a href="{% url 'download_file' file_id=node.id %}" class="btn-primary" style="margin-top:16px;text-decoration:none;font-size:13px;padding:0 20px;height:36px;display:inline-flex;align-items:center;gap:6px;border-radius:8px">ดาวน์โหลดไฟล์</a>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% if is_office or is_word %}
+{% block extra_js %}
+<style>
+.xl-tab { padding:4px 12px; border-radius:6px; font-size:12px; font-weight:500; cursor:pointer; border:0.5px solid transparent; color:var(--text-muted); background:transparent; font-family:inherit; transition:all 0.1s; }
+.xl-tab:hover { background:var(--bg); color:var(--text); }
+.xl-tab.active { background:var(--bg); border-color:var(--border); color:var(--accent); }
+#xl-spin, #wd-spin { width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:vwspin 0.7s linear infinite; flex-shrink:0; }
+@keyframes vwspin { to { transform:rotate(360deg); } }
+#xl-tbl { border-collapse:collapse; font-size:12px; font-family:'IBM Plex Mono',monospace; white-space:nowrap; }
+#xl-tbl th { background:var(--bg2); border:0.5px solid var(--border); padding:5px 12px; font-weight:500; color:var(--text-muted); position:sticky; top:0; z-index:2; font-family:'Sarabun',sans-serif; text-align:center; }
+#xl-tbl th.rn { position:sticky; left:0; z-index:3; min-width:40px; }
+#xl-tbl td { border:0.5px solid var(--border); padding:4px 12px; color:var(--text); }
+#xl-tbl td.rn { background:var(--bg2); color:var(--text-muted); text-align:center; position:sticky; left:0; z-index:1; font-size:11px; min-width:40px; }
+#xl-tbl tr:hover td:not(.rn) { background:var(--accent-light); }
+#wd-body h1,#wd-body h2,#wd-body h3,#wd-body h4 { margin:16px 0 8px; font-weight:600; }
+#wd-body p { margin-bottom:8px; }
+#wd-body table { border-collapse:collapse; width:100%; margin:12px 0; }
+#wd-body table td,#wd-body table th { border:1px solid #ccc; padding:6px 10px; }
+#wd-body img { max-width:100%; height:auto; }
+#wd-body ul,#wd-body ol { padding-left:24px; margin-bottom:8px; }
+</style>
+
+{% if is_office %}
+<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const SERVE_URL = "{% url 'serve_file' file_id=node.id %}";
+  const $ = id => document.getElementById(id);
+  let wb;
+  function showErr(msg) { $('xl-loading').style.display='none'; $('xl-err').style.display='block'; $('xl-err').textContent=msg; }
+  if (typeof XLSX === 'undefined') return showErr('โหลด xlsx.js ไม่สำเร็จ — ลองปิด Tracking Prevention แล้ว refresh');
+  function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function renderSheet(name) {
+    document.querySelectorAll('.xl-tab').forEach(t=>t.classList.toggle('active',t.dataset.s===name));
+    const ws=wb.Sheets[name]; const tbl=$('xl-tbl');
+    if(!ws||!ws['!ref']){tbl.innerHTML='<tr><td style="padding:24px;color:var(--text-muted)">Sheet ว่างเปล่า</td></tr>';return;}
+    const R=XLSX.utils.decode_range(ws['!ref']);
+    $('xl-info').textContent=(R.e.r-R.s.r+1).toLocaleString()+' แถว × '+(R.e.c-R.s.c+1).toLocaleString()+' คอลัมน์';
+    let h='<thead><tr><th class="rn">#</th>';
+    for(let c=R.s.c;c<=R.e.c;c++) h+='<th>'+XLSX.utils.encode_col(c)+'</th>';
+    h+='</tr></thead><tbody>';
+    for(let r=R.s.r;r<=R.e.r;r++){
+      h+='<tr><td class="rn">'+(r+1)+'</td>';
+      for(let c=R.s.c;c<=R.e.c;c++){const cell=ws[XLSX.utils.encode_cell({r,c})];const v=cell?(cell.w??cell.v??''):'';h+='<td title="'+esc(v)+'">'+esc(v)+'</td>';}
+      h+='</tr>';
+    }
+    tbl.innerHTML=h+'</tbody>';
+  }
+  fetch(SERVE_URL).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();})
+  .then(buf=>{
+    wb=XLSX.read(buf,{type:'array',cellDates:true});
+    const tabs=$('xl-tabs');
+    wb.SheetNames.forEach((name,i)=>{const btn=document.createElement('button');btn.className='xl-tab'+(i===0?' active':'');btn.dataset.s=name;btn.textContent=name;btn.onclick=()=>renderSheet(name);tabs.appendChild(btn);});
+    $('xl-loading').style.display='none'; $('xl-tbl-wrap').style.display='block';
+    renderSheet(wb.SheetNames[0]);
+  }).catch(e=>showErr('โหลดไม่สำเร็จ: '+e.message));
+});
+</script>
+{% endif %}
+
+{% if is_word %}
+<script src="https://unpkg.com/mammoth@1.6.0/mammoth.browser.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const SERVE_URL = "{% url 'serve_file' file_id=node.id %}";
+  const $ = id => document.getElementById(id);
+  function showErr(msg) { $('wd-loading').style.display='none'; $('wd-err').style.display='block'; $('wd-err').textContent=msg; }
+  if (typeof mammoth === 'undefined') return showErr('โหลด mammoth.js ไม่สำเร็จ — ลองปิด Tracking Prevention แล้ว refresh');
+  fetch(SERVE_URL).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.arrayBuffer();})
+  .then(buf=>mammoth.convertToHtml({arrayBuffer:buf}))
+  .then(result=>{ $('wd-loading').style.display='none'; $('wd-body').style.display='block'; $('wd-body').innerHTML=result.value; })
+  .catch(e=>showErr('โหลดไม่สำเร็จ: '+e.message));
+});
+</script>
+{% endif %}
+
+{% if is_pptx %}
+<script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const SERVE_URL = "{% url 'serve_file' file_id=node.id %}";
+  const $ = id => document.getElementById(id);
+  let slides = [];
+  let current = 0;
+
+  function showErr(msg) {
+    $('pp-loading').style.display = 'none';
+    $('pp-err').style.display = 'block';
+    $('pp-err').textContent = msg;
+  }
+
+  function esc(s) { return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function updateNav() {
+    $('pp-counter').textContent = 'สไลด์ ' + (current+1) + ' / ' + slides.length;
+    const cards = document.querySelectorAll('.pp-slide');
+    cards.forEach((c, i) => c.style.display = i === current ? 'block' : 'none');
+  }
+
+  window.ppNav = function(dir) {
+    current = Math.max(0, Math.min(slides.length - 1, current + dir));
+    updateNav();
+  };
+
+  // ใช้ JSZip อ่าน pptx (zip) แล้วดึง slide XML render เป็น HTML
+  fetch(SERVE_URL)
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+    .then(buf => {
+      if (typeof JSZip === 'undefined') throw new Error('โหลด JSZip ไม่สำเร็จ');
+      return JSZip.loadAsync(buf);
+    })
+    .then(zip => {
+      // หา slide files ทั้งหมด
+      const slideFiles = Object.keys(zip.files)
+        .filter(n => n.match(/^ppt\/slides\/slide\d+\.xml$/))
+        .sort((a, b) => {
+          const na = parseInt(a.match(/\d+/)[0]);
+          const nb = parseInt(b.match(/\d+/)[0]);
+          return na - nb;
+        });
+
+      if (!slideFiles.length) throw new Error('ไม่พบข้อมูล slide ในไฟล์');
+
+      return Promise.all(slideFiles.map(f => zip.files[f].async('string')));
+    })
+    .then(xmlList => {
+      const container = $('pp-slides');
+      slides = xmlList;
+
+      xmlList.forEach((xml, idx) => {
+        const div = document.createElement('div');
+        div.className = 'pp-slide';
+        div.style.cssText = 'display:' + (idx===0?'block':'none') + ';background:#fff;width:100%;aspect-ratio:16/9;border-radius:8px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.4);margin-bottom:16px;padding:5%;box-sizing:border-box;position:relative;';
+
+        // parse XML ดึง text nodes
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xml, 'application/xml');
+
+        // ดึง title (p:sp ที่มี ph type="title")
+        const titleEl = doc.querySelector('[type="title"] ~ txBody r t, ph[type="ctrTitle"] ~ txBody r t');
+        const title = titleEl ? titleEl.textContent : '';
+
+        // ดึง text ทั้งหมด
+        const texts = Array.from(doc.querySelectorAll('a\\:t, t'))
+          .map(t => t.textContent.trim())
+          .filter(t => t && t !== title);
+
+        div.innerHTML = `
+          <div style="height:100%;display:flex;flex-direction:column;justify-content:center;">
+            ${title ? `<h2 style="font-size:clamp(18px,3vw,32px);font-weight:700;color:#1e293b;margin:0 0 16px;line-height:1.2;font-family:'Sarabun',sans-serif;">${esc(title)}</h2>` : ''}
+            <div style="font-size:clamp(12px,1.8vw,20px);color:#334155;line-height:1.6;font-family:'Sarabun',sans-serif;">
+              ${texts.slice(0, 20).map(t => `<p style="margin:4px 0;">${esc(t)}</p>`).join('')}
+            </div>
+          </div>
+          <div style="position:absolute;bottom:12px;right:16px;font-size:12px;color:#94a3b8;">${idx+1}</div>`;
+
+        container.appendChild(div);
+      });
+
+      $('pp-loading').style.display = 'none';
+      $('pp-nav').style.display = 'block';
+      updateNav();
+    })
+    .catch(e => showErr('โหลดไม่สำเร็จ: ' + e.message));
+});
+</script>
+<style>
+#pp-spin { width:18px;height:18px;border:2px solid rgba(255,255,255,0.2);border-top-color:#60a5fa;border-radius:50%;animation:ppspin 0.7s linear infinite;flex-shrink:0; }
+@keyframes ppspin { to { transform:rotate(360deg); } }
+</style>
+{% endif %}
+
+{% endblock %}
+{% endif %}

@@ -1,0 +1,70 @@
+{% extends 'app/base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }} — NAS Drive{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+  <div class="breadcrumb">
+    <span class="crumb-current">{{ page_title }}</span>
+  </div>
+  {% if icon == 'trash' and nodes %}
+  <div class="toolbar-actions">
+    <form method="post" action="{% url 'empty_trash' %}" onsubmit="return confirm('ลบทุกไฟล์ในถังขยะถาวร?')">
+      {% csrf_token %}
+      <button type="submit" class="tb-btn danger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        ล้างถังขยะ
+      </button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+<div class="file-area">
+  {% if not nodes %}
+  <div class="empty-state">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" width="56" height="56" style="color:var(--text-muted);margin-bottom:16px">
+      {% if icon == 'star' %}
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      {% else %}
+      <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+      {% endif %}
+    </svg>
+    <p>{% if icon == 'star' %}ยังไม่มีไฟล์ที่ starred{% else %}ถังขยะว่างเปล่า{% endif %}</p>
+  </div>
+  {% else %}
+  <div class="list-header">
+    <div></div><div>ชื่อ</div><div>ขนาด</div><div>วันที่</div><div></div>
+  </div>
+  {% for node in nodes %}
+  <div class="file-row">
+    <div class="row-icon">
+      {% if node.is_folder %}
+      <svg viewBox="0 0 20 16" width="20" height="16"><path d="M0 2.2C0 1 1 0 2.2 0H7.8l2.2 2.2H17.8c1.2 0 2.2 1 2.2 2.2v9.3c0 1.2-1 2.2-2.2 2.2H2.2C1 16 0 15 0 13.8V2.2z" fill="#fbbf24"/></svg>
+      {% else %}
+      {% include 'app/partials/file_icon.html' with ext=node.extension size=18 %}
+      {% endif %}
+    </div>
+    <span class="row-name">{{ node.name }}</span>
+    <span class="row-size">{{ node.human_size }}</span>
+    <span class="row-date">{{ node.updated_at|date:"d M Y" }}</span>
+    <div class="row-actions">
+      {% if icon == 'trash' %}
+      <form method="post" action="{% url 'restore_node' node_id=node.id %}" style="display:inline">
+        {% csrf_token %}
+        <button type="submit" class="tb-btn" title="กู้คืน">กู้คืน</button>
+      </form>
+      <form method="post" action="{% url 'delete_node' node_id=node.id %}" style="display:inline" onsubmit="return confirm('ลบถาวร?')">
+        {% csrf_token %}
+        <button type="submit" class="tb-btn danger" title="ลบถาวร">ลบถาวร</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+</div>
+
+<form method="post" id="trash-form" style="display:none">{% csrf_token %}</form>
+{% endblock %}
